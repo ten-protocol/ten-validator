@@ -1,0 +1,76 @@
+# Ignore Terraform state files and crash logs
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Ignore Terraform variable files containing sensitive data
+*.tfvars
+
+# Ignore Terraform provider-specific files
+.terraform/
+.terraform.lock.hcl
+
+# Ignore Terraform plan files
+*.tfplan
+
+# Ignore Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore temporary Terraform files
+terraform.tfstate.backup
+.terraformrc
+
+# Ignore Ansible configuration file
+ansible.cfg
+
+# Ignore Ansible inventory files
+.inventory
+
+# Ignore Ansible retry files
+*.retry
+
+# Ignore SSH keys
+*.pem
+*.key
+ssh-login.sh
+
+# Ignore Python virtual environment directories commonly used in Ansible projects
+venv/
+env/
+
+# Ignore Python byte-code files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore Ansible Galaxy roles and collections
+roles/*
+collections/*
+
+# If you are using Ansible Vault, you may want to ignore encrypted secrets files
+*.vault
+
+# Ignore miscellaneous temporary files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Ignore IDE/editor specific files
+.idea/
+.vscode/
+*.iml
+
+# Ignore logs
+*.log
+
+# Ignore shell history files
+.bash_history
+.zsh_history
+
+# Ignore OS generated files
+Thumbs.db
+.DS_Store

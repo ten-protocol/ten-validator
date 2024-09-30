@@ -1,0 +1,23 @@
+# terraform.tfvars example file - rename to terraform.tfvars to use
+
+# Location of the resource group
+resource_group_location = "uksouth"
+
+# Prefix of the resource group name that's combined with a random ID so name is unique in your Azure subscription
+resource_group_name = "TEN_VALIDATOR"
+
+# The username for the local account that will be created on the new VM
+username = "tenuser"
+
+# Must be a valid VM size and SGX enabled
+# The size of the VM
+vm_size = "Standard_DC8_v2"
+
+# The port the web server will listen on
+host_http_port = 10000
+
+# The port the websocket server will listen on
+host_websocket_port = 80
+
+# The port the P2P server will listen on
+host_p2p_port = 81

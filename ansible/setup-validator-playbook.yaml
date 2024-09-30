@@ -1,0 +1,113 @@
+---
+- name: Setup ten_validatorVM
+  hosts: all
+  become: yes
+  tasks:
+    - name: Create directory /home/obscuro
+      file:
+        path: /home/obscuro
+        state: directory
+
+    - name: Clone go-ten repository
+      git:
+        repo: "https://github.com/ten-protocol/go-ten.git"
+        dest: /home/obscuro/go-obscuro
+        version: "{{ lookup('env', 'BRANCH_NAME') }}"
+        depth: 1
+
+    - name: Copy edb-connect.sh
+      copy:
+        src: /home/obscuro/go-obscuro/tools/edbconnect/edb-connect.sh
+        dest: /home/obscurouser/edb-connect.sh
+        owner: obscurouser
+        group: obscurouser
+        mode: '0755'
+
+    - name: Create Docker network
+      docker_network:
+        name: node_network
+        driver: bridge
+
+    - name: Create directory /home/obscuro/promtail
+      file:
+        path: /home/obscuro/promtail
+        state: directory
+
+    - name: Create promtail-config.yaml
+      copy:
+        dest: /home/obscuro/promtail/promtail-config.yaml
+        content: |
+          server:
+            http_listen_port: 9080
+            grpc_listen_port: 0
+
+          positions:
+            filename: /tmp/positions.yaml
+
+          clients:
+            - url: "{{ lookup('vars', 'METRICS_URI') }}"
+              batchwait: 3s
+              batchsize: 1048576
+              tls_config:
+                insecure_skip_verify: true
+              basic_auth:
+                username: "{{ lookup('secrets', 'LOKI_USER') }}"
+                password: "{{ lookup('secrets', 'LOKI_PASSWORD') }}"
+
+          scrape_configs:
+          - job_name: flog_scrape
+            docker_sd_configs:
+              - host: unix:///var/run/docker.sock
+                refresh_interval: 5s
+            relabel_configs:
+              - source_labels: ["__meta_docker_container_name"]
+                regex: "/(.*)"
+                target_label: "container"
+              - source_labels: ["__meta_docker_container_log_stream"]
+                target_label: "logstream"
+              - source_labels: ["__meta_docker_container_label_logging_jobname"]
+                target_label: "job"
+              - replacement: "{{ lookup('matrix', 'host_id') }}-{{ lookup('github', 'event.inputs.testnet_type') }}-{{ lookup('GITHUB', 'RUN_NUMBER') }}"
+                target_label: "node_name"
+
+    - name: Run promtail container
+      docker_container:
+        name: promtail
+        image: grafana/promtail:latest
+        state: started
+        restart_policy: always
+        network_mode: node_network
+        env:
+          HOSTNAME: "{{ lookup('matrix', 'host_id') }}-{{ lookup('github', 'event.inputs.testnet_type') }}-{{ lookup('GITHUB', 'RUN_NUMBER') }}"
+        volumes:
+          - /var/log:/var/log
+          - /home/obscuro/promtail:/etc/promtail
+          - /var/lib/docker/containers:/var/lib/docker/containers:ro
+          - /var/run/docker.sock:/var/run/docker.sock
+        command: -config.file=/etc/promtail/promtail-config.yaml -config.expand-env=true
+
+    - name: Run go-ten node
+      command: >
+        sudo go run /home/obscuro/go-obscuro/go/node/cmd
+        -is_genesis={{ lookup('matrix', 'is_genesis') }}
+        -node_type={{ lookup('matrix', 'node_type') }}
+        -is_sgx_enabled=true
+        -host_id={{ lookup('vars', 'matrix.node_addr_lookup') }}
+        -l1_ws_url={{ lookup('secrets', 'matrix.node_l1_ws_lookup') }}
+        -management_contract_addr={{ lookup('needs.build.outputs', 'MGMT_CONTRACT_ADDR') }}
+        -message_bus_contract_addr={{ lookup('needs.build.outputs', 'MSG_BUS_CONTRACT_ADDR') }}
+        -l1_start={{ lookup('needs.build.outputs', 'L1_START_HASH') }}
+        -private_key={{ lookup('secrets', 'matrix.node_pk_lookup') }}
+        -sequencer_addr=obscuronode-0-{{ lookup('github.event.inputs', 'testnet_type') }}-{{ lookup('GITHUB', 'RUN_NUMBER') }}.uksouth.cloudapp.azure.com:10000
+        -host_public_p2p_addr=obscuronode-{{ lookup('matrix', 'host_id') }}-{{ lookup('github.event.inputs', 'testnet_type') }}-{{ lookup('GITHUB', 'RUN_NUMBER') }}.uksouth.cloudapp.azure.com:10000
+        -host_p2p_port=10000
+        -enclave_docker_image={{ lookup('vars', 'L2_ENCLAVE_DOCKER_BUILD_TAG') }}
+        -host_docker_image={{ lookup('vars', 'L2_HOST_DOCKER_BUILD_TAG') }}
+        -is_debug_namespace_enabled=true
+        -log_level={{ lookup('github.event.inputs', 'log_level') }}
+        -batch_interval={{ lookup('vars', 'L2_BATCH_INTERVAL') }}
+        -max_batch_interval={{ lookup('vars', 'L2_MAX_BATCH_INTERVAL') }}
+        -rollup_interval={{ lookup('vars', 'L2_ROLLUP_INTERVAL') }}
+        -l1_chain_id={{ lookup('vars', 'L1_CHAIN_ID') }}
+        -postgres_db_host=postgres://tenuser:{{ lookup('secrets', 'TEN_POSTGRES_USER_PWD') }}@postgres-ten-{{ lookup('github.event.inputs', 'testnet_type') }}.postgres.database.azure.com:5432/
+        start
