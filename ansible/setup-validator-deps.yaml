@@ -1,0 +1,32 @@
+---
+- name: Setup validator dependencies
+  hosts: ten-validator
+  become: true
+  tasks:
+    - name: Download Docker installation script
+      ansible.builtin.get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: '0755'
+
+    - name: Execute Docker installation script
+      ansible.builtin.command: sh /tmp/get-docker.sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Ensure Docker is started and enabled
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add current user to the Docker group (optional)
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Install go
+      ansible.builtin.apt:
+        name: golang
+        state: present

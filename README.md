@@ -105,7 +105,7 @@ The `get-key.sh` script is used to retrieve necessary keys for the Validator Nod
 2. **Run the Ansible playbook:**
 
     ```sh
-    ansible-playbook -i inventory main.yml
+    ansible-playbook -i hosts.ini install_ten_validator.yml
     ```
 
     Ensure that the `inventory` file is correctly configured with the details of your provisioned infrastructure.

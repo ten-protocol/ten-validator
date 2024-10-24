@@ -1,0 +1,15 @@
+# network vars | used in ansible playbook - these should not be changed
+ten_network: "sepolia"
+loki_metrics_uri: "https://metrics.ten.xyz:3443/loki/api/v1/push"
+loki_username: "ten"
+loki_password: "ten"
+enclave_docker_build_tag: "testnetobscuronet.azurecr.io/obscuronet/enclave:v0.27.0"
+host_docker_build_tag: "testnetobscuronet.azurecr.io/obscuronet/host:v0.27.0"
+l2_batch_interval: "1s"
+l2_max_batch_interval: "1s"
+l2_rollup_interval: "15m"
+l1_chain_id: 11155111
+management_contract_addr: "0x1407D9175cA2075df838b4F6C91850120eB6c4F7"
+message_bus_contract_addr: "0xA76aDeb99F1d45fBBBA7a7a89Ec73aE0B1A6B9E4"
+l1_start_hash: "0x4ae3e71c18ad69255c47399a71b3f5992ab507996d5d5a7481629390a2c825ce"
+sequencer_addr: "obscuronode-0-sepolia-testnet-1017.uksouth.cloudapp.azure.com:10000"

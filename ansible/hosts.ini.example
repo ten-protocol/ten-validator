@@ -1,0 +1,9 @@
+[local]
+localhost ansible_connection=local
+
+[ten-validator]
+xxx.xxx.xxx.xxx # host or ip of your VM
+
+[ten-validator:vars]
+ansible_user=tenuser
+ansible_ssh_private_key_file=../terraform/ssh-key.pem
