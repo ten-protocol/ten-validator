@@ -1,0 +1,19 @@
+---
+- name: Check out go-obscuro if node_binary_stat.stat.exists is false
+  ansible.builtin.git:
+    repo: https://github.com/obscuronet/go-obscuro.git
+    dest: ./go-obscuro
+    version: "{{ node_version }}"
+
+- name: Ensure Go dependencies are fetched
+  ansible.builtin.command: >
+    /usr/local/go/bin/go build
+  args:
+    chdir: ./go-obscuro/go/node/cmd
+
+- name: Copy node binary to current directory
+  ansible.builtin.copy:
+    src: ./go-obscuro/go/node/cmd/cmd
+    dest: ./start-node
+    remote_src: true
+    mode: '0755'

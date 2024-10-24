@@ -1,0 +1,49 @@
+---
+- name: Download Docker installation script
+  ansible.builtin.get_url:
+    url: https://get.docker.com
+    dest: /tmp/get-docker.sh
+    mode: '0755'
+
+- name: Execute Docker installation script
+  ansible.builtin.command: sh /tmp/get-docker.sh
+  args:
+    creates: /usr/bin/docker
+
+- name: Ensure Docker is started and enabled
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add current user to the Docker group (optional)
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+- name: Copy Go binaries
+  ansible.builtin.copy:
+    src: ./files/go1.22.6.linux-amd64.tar.gz
+    dest: go-linux-amd64.tar.gz
+
+- name: Extract Go binaries
+  ansible.builtin.unarchive:
+    src: go-linux-amd64.tar.gz
+    dest: /usr/local
+    remote_src: true
+  args:
+    creates: /usr/local/go/bin/go
+
+- name: Set Go environment variables persistently
+  ansible.builtin.shell:
+    'echo export PATH=$PATH:/usr/local/go/bin >> ~/.bashrc'
+
+- name: Source the updated bashrc and check Go version
+  ansible.builtin.shell: |
+    bash -c "source ~/.bashrc && /usr/local/go/bin/go version"
+  register: go_version
+
+- name: Debug Go version
+  ansible.builtin.debug:
+    var: go_version.stdout

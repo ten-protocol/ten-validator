@@ -1,0 +1,126 @@
+---
+- name: Check if docker-compose is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/docker-compose
+  register: docker_compose_stat
+
+- name: Download docker-compose and make executable
+  ansible.builtin.get_url:
+    url: https://github.com/docker/compose/releases/download/v2.29.6/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+  when: not docker_compose_stat.stat.exists
+
+- name: Check if Docker network exists
+  ansible.builtin.shell: |
+    docker network ls --filter name=node_network --format "{{ '{{' }}.Name{{ '}}' }}"
+  register: docker_network_check
+  changed_when: false
+
+- name: Create Docker network if it does not exist
+  ansible.builtin.shell: |
+    docker network create --driver bridge node_network
+  when: docker_network_check.stdout != "node_network"
+
+- name: Create docker-compose.yml
+  ansible.builtin.copy:
+    dest: ./docker-compose.yml
+    mode: '0644'
+    content: |
+      version: '3.8'
+
+      services:
+        postgres:
+          build: ./postgres
+          container_name: obscuronode-postgres
+          environment:
+            POSTGRES_PASSWORD: pass
+          ports:
+            - "5432:5432"
+          networks:
+            - node_network
+
+      networks:
+        node_network:
+          external: true
+
+- name: Stop and remove old Postgres container
+  ansible.builtin.shell: |
+    docker stop obscuronode-postgres || true && docker rm obscuronode-postgres || true
+
+- name: Remove old PostgreSQL directory
+  ansible.builtin.file:
+    path: ./postgres
+    state: absent
+
+- name: Create necessary directories for PostgreSQL setup
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - ./postgres/certs
+    - ./postgres/initdb
+
+- name: Install openssl
+  ansible.builtin.package:
+    name:
+      - openssl
+      - libssl-dev
+    state: present
+
+- name: Generate SSL private key
+  community.crypto.openssl_privatekey:
+    path: ./postgres/certs/server.key
+    size: 2048
+
+- name: Generate SSL CSR
+  community.crypto.openssl_csr:
+    path: ./postgres/certs/server.csr
+    privatekey_path: ./postgres/certs/server.key
+    common_name: localhost
+
+- name: Generate SSL certificate
+  community.crypto.x509_certificate:
+    path: ./postgres/certs/server.crt
+    csr_path: ./postgres/certs/server.csr
+    privatekey_path: ./postgres/certs/server.key
+    provider: selfsigned
+    selfsigned_notAfter: "99991231235959Z"  # Set to a far future date
+
+- name: Create Dockerfile for PostgreSQL
+  ansible.builtin.copy:
+    dest: ./postgres/Dockerfile
+    mode: '0644'
+    content: |
+      FROM postgres:latest
+
+      COPY ./certs/server.crt /var/lib/postgresql/server.crt
+      COPY ./certs/server.key /var/lib/postgresql/server.key
+
+      RUN chown postgres:postgres /var/lib/postgresql/server.crt /var/lib/postgresql/server.key \
+          && chmod 600 /var/lib/postgresql/server.crt /var/lib/postgresql/server.key
+
+      RUN echo "ssl = on" >> /usr/share/postgresql/postgresql.conf \
+          && echo "ssl_cert_file = '/var/lib/postgresql/server.crt'" >> /usr/share/postgresql/postgresql.conf \
+          && echo "ssl_key_file = '/var/lib/postgresql/server.key'" >> /usr/share/postgresql/postgresql.conf
+
+- name: Run Docker Compose with custom path
+  ansible.builtin.command: docker-compose up --build -d
+  become: true
+
+- name: Set postgres_db_host based on docker container and port
+  ansible.builtin.set_fact:
+    postgres_db_host: "postgres://postgres:pass@obscuronode-postgres:5432/"
+
+- name: Install psql
+  ansible.builtin.package:
+    name:
+      - postgresql-client
+    state: present
+
+- name: Test postgres with psql
+  ansible.builtin.command: >
+    psql "postgres://postgres:pass@0.0.0.0:5432/postgres" -c 'SELECT 1'
+  register: psql_test
+  failed_when: psql_test.rc != 0

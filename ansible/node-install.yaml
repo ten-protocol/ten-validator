@@ -1,0 +1,96 @@
+---
+- name: Create directory /home/obscuro
+  ansible.builtin.file:
+    path: /home/obscuro
+    state: directory
+    mode: '0755'
+
+- name: Create directory /home/obscuro/promtail
+  ansible.builtin.file:
+    path: /home/obscuro/promtail
+    state: directory
+    mode: '0755'
+
+- name: Create promtail-config.yaml
+  vars:
+    hostname: "{{ host_id }}-{{ environment }}-external"
+  ansible.builtin.copy:
+    dest: /home/obscuro/promtail/promtail-config.yaml
+    mode: '0644'
+    content: |
+      server:
+        http_listen_port: 9080
+        grpc_listen_port: 0
+
+      positions:
+        filename: /tmp/positions.yaml
+
+      clients:
+        - url: "{{ loki_metrics_uri }}"
+          batchwait: 3s
+          batchsize: 1048576
+          tls_config:
+            insecure_skip_verify: true
+          basic_auth:
+            username: "{{ loki_username }}"
+            password: "{{ loki_password }}"
+
+      scrape_configs:
+      - job_name: flog_scrape
+        docker_sd_configs:
+          - host: unix:///var/run/docker.sock
+            refresh_interval: 5s
+        relabel_configs:
+          - source_labels: ["__meta_docker_container_name"]
+            regex: "/(.*)"
+            target_label: "container"
+          - source_labels: ["__meta_docker_container_log_stream"]
+            target_label: "logstream"
+          - source_labels: ["__meta_docker_container_label_logging_jobname"]
+            target_label: "job"
+          - replacement: "{{ hostname }}"
+            target_label: "node_name"
+
+- name: Run promtail container
+  community.docker.docker_container:
+    name: promtail
+    image: grafana/promtail:latest
+    state: started
+    restart_policy: always
+    network_mode: node_network
+    env:
+      HOSTNAME: "{{ hostname }}"
+    volumes:
+      - /var/log:/var/log
+      - /home/obscuro/promtail:/etc/promtail
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      -config.file=/etc/promtail/promtail-config.yaml
+      -config.expand-env=true
+
+- name: Run go-ten node
+  ansible.builtin.command: >
+    ./start-node
+    -is_genesis=false
+    -node_type=validator
+    -is_sgx_enabled=true
+    -host_id={{ host_id }}
+    -l1_ws_url={{ l1_ws_url }}
+    -management_contract_addr={{ management_contract_addr }}
+    -message_bus_contract_addr={{ message_bus_contract_addr }}
+    -l1_start={{ l1_start_hash }}
+    -private_key={{ private_key }}
+    -sequencer_addr={{ sequencer_addr }}
+    -host_public_p2p_addr={{ host_public_p2p_addr }}
+    -host_p2p_port=10000
+    -enclave_docker_image={{ enclave_docker_build_tag }}
+    -host_docker_image={{ host_docker_build_tag }}
+    -is_debug_namespace_enabled=true
+    -log_level={{ log_level }}
+    -batch_interval={{ l2_batch_interval }}
+    -max_batch_interval={{ l2_max_batch_interval }}
+    -rollup_interval={{ l2_rollup_interval }}
+    -l1_chain_id={{ l1_chain_id }}
+    -postgres_db_host={{ postgres_db_host }}
+    start
