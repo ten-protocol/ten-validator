@@ -1,4 +1,22 @@
 ---
+- name: Delete existing containers
+  community.docker.docker_container:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - obscuronode-host
+    - obscuronode-enclave
+    - obscuronode-edgelessdb
+
+- name: Remove associated volumes
+  community.docker.docker_volume:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - obscuronode-host-volume
+    - obscuronode-enclave-volume
+    - obscuronode-edgelessdb-volume
+
 - name: Create directory /home/obscuro
   ansible.builtin.file:
     path: /home/obscuro
