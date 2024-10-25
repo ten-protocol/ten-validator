@@ -1,111 +1,119 @@
 # Azure Validator Node
 
-Create a new Azure Validator Node with the following steps:
+This repository contains scripts and configurations to set up and manage an Azure Validator Node using Terraform and Ansible.
 
 ## Overview
 
-This repository contains scripts and configurations to set up and manage an Azure Validator Node using Terraform and Ansible.
-
-### Terraform
-
-Terraform scripts are located in the [./terraform](./terraform) directory. These scripts are used to provision the necessary Azure infrastructure for the Validator Node.
-
-### Ansible
-
-Ansible playbooks are located in the [./ansible](./ansible) directory. These playbooks are used to configure the provisioned infrastructure and deploy the Validator Node.
+- **Terraform**: Used to provision the necessary Azure infrastructure for the Validator Node.
+- **Ansible**: Used to configure the provisioned infrastructure and deploy the Validator Node.
 
 ## Requirements
 
-Before you begin, ensure you have the following installed:
+Before you begin, ensure you have the following installed on your local machine:
 
-- [Terraform](https://www.terraform.io/downloads.html)
+- [Terraform](https://www.terraform.io/downloads.html) (version >= 0.12)
+  - [Installation Guide](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 - [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
+  - [Installation Guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
+  - Install necessary Ansible modules:
+    ```sh
+    ansible-galaxy collection install community.docker community.crypto
+    ```
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [Git](https://git-scm.com/downloads)
 
 ## Pre-requisites
-Authenticate with Azure CLI
-```sh
-az login
-```
 
-## Installation
+1. **Authenticate with Azure CLI**:
+   ```sh
+   az login
+   ```
 
-1. **Clone the repository:**
+2. **Clone the repository**:
+   ```sh
+   git clone https://github.com/ten-protocol/ten-validator.git
+   cd ten-validator
+   ```
 
-    ```sh
-    git clone https://github.com/ten-protocol/ten-validator.git
-    cd ten-validator
-    ```
+3. **Configure Azure Subscription**:
+   Ensure your Azure subscription is set correctly:
+   ```sh
+   az account set --subscription "your-subscription-name"
+   ```
 
-2. **Install Terraform:**
+## Terraform Setup
 
-    Follow the instructions on the [Terraform website](https://www.terraform.io/downloads.html) to install Terraform.
+### Initialize and Apply Terraform Configuration
 
-3. **Install Ansible:**
+1. **Navigate to the Terraform directory**:
+   ```sh
+   cd terraform
+   ```
 
-    Follow the instructions on the [Ansible website](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) to install Ansible.
+2. **Copy the example `terraform.tfvars` file and edit it**:
+   ```sh
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit terraform.tfvars with your preferred settings
+   ```
 
-4. **Install Azure CLI:**
+3. **Initialize Terraform**:
+   ```sh
+   terraform init
+   ```
 
-    Follow the instructions on the [Azure CLI website](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) to install the Azure CLI.
+4. **Apply the Terraform configuration**:
+   ```sh
+   terraform apply
+   ```
+   Follow the prompts to confirm the infrastructure changes.
 
-## Usage
+5. **Retrieve SSH Key and Login Script**:
+   ```sh
+   chmod +x get-key.sh
+   ./get-key.sh
+   ```
 
-### Terraform
+## Ansible Deployment
 
-1. **Navigate to the Terraform directory:**
+### Deploy the Validator Node
 
-    ```sh
-    cd AzureTerra/terraform
-    ```
+1. **Navigate to the Ansible directory**:
+   ```sh
+   cd ansible
+   ```
 
-2. **Initialize Terraform:**
+2. **Copy the example `hosts.ini` file and edit it**:
+   ```sh
+   cp hosts.ini.example hosts.ini
+   # Edit hosts.ini with the IP address of your VM
+   ```
 
-    ```sh
-    terraform init
-    ```
 
-3. **Apply the Terraform configuration:**
 
-    ```sh
-    terraform apply
-    ```
+3. **Run the Ansible playbook**:
+   ```sh
+   ansible-playbook -i hosts.ini setup-validator-playbook.yaml
+   ```
+   Ensure that the `hosts.ini` file is correctly configured with the details of your provisioned infrastructure.
 
-    Follow the prompts to confirm the infrastructure changes.
+## Additional Information
 
-### Login to Validator Node
-#### get-key.sh
+- **Clear Terraform State**: If you need to destroy the infrastructure and clear the Terraform state, run:
+  ```sh
+  chmod +x clear.sh
+  ./clear.sh
+  ```
 
-The `get-key.sh` script is used to retrieve necessary keys for the Validator Node and generate a simple ssh-login.sh script to login to the Validator Node.
+- **Environment Variables**: Ensure that all necessary environment variables are set as per the `ansible/files/node.env.example` file.
 
-1. **Run the script:**
+- **Network Configuration**: The network settings are defined in `ansible/files/network_vars.yml` and should not be changed unless necessary.
 
-    ```sh
-    chmod +x get-key.sh
-    ./get-key.sh
-    ```
+## Troubleshooting
 
-2. **Run the generated script:**
+- Ensure all dependencies are installed and accessible in your system's PATH.
+- Verify that your Azure CLI is authenticated and set to the correct subscription.
+- Check that your `terraform.tfvars` and `hosts.ini` files are correctly configured.
 
-    ```sh
-    chmod +x ssh-login.sh
-    ./ssh-login.sh
-    ```
-
-    This will log you into the Validator Node.
-
-### Ansible
-
-1. **Navigate to the Ansible directory:**
-
-    ```sh
-    cd AzureTerra/ansible
-    ```
-
-2. **Run the Ansible playbook:**
-
-    ```sh
-    ansible-playbook -i hosts.ini install_ten_validator.yml
-    ```
-
-    Ensure that the `inventory` file is correctly configured with the details of your provisioned infrastructure.
+For further assistance, refer to the official documentation of each tool or reach out to the project maintainers.

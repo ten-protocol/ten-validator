@@ -15,8 +15,8 @@
     # # l1_beacon_url: "{{ lookup('env', 'L1_BEACON_URL', default=env_file_vars.L1_BEACON_URL) }}"
     log_level: "{{ lookup('env', 'LOG_LEVEL') |  default(LOG_LEVEL, true) | default(3, true) }}"
     hostname: "{{ host_id }}-{{ ten_network }}-external"
-    install_deps: false
-    install_postgres: false
+    install_deps: true
+    install_postgres: "{{ postgres_db_host is not defined or postgres_db_host == '' }}"
     install_node: true
 
   tasks:

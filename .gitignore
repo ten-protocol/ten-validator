@@ -78,3 +78,4 @@ Thumbs.db
 *.env
 node_secrets.yml
 hosts.ini
+.vaultpass
