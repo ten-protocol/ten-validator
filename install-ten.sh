@@ -110,6 +110,7 @@ ${HOST_PUBLIC_P2P_ADDR_ROOT} # host or ip of your VM
 [ten-validator:vars]
 ansible_user=${SSH_USERNAME}
 ${SSH_CREDENTIAL}
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOL
 
 # Encrypt the file with ansible-vault using the .vaultpass file
