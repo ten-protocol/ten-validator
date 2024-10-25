@@ -120,4 +120,4 @@ ansible-playbook -i hosts.ini setup-validator-playbook.yaml --vault-password-fil
 cd $CURRENT_DIR
 
 echo "Installation complete!"
-rm .vaultpass
+rm .vaultpass && rm -rf ./ansible/files/node_secrets.yml
