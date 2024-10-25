@@ -63,6 +63,11 @@ read AUTH_METHOD
 AUTH_METHOD=${AUTH_METHOD:-key}
 if [[ "$AUTH_METHOD" == "key" ]]; then
   prompt_for_input "Please enter the path to your SSH key file (Just press Enter if you ran terraform)" SSH_KEY_PATH '^.+$' "${CURRENT_DIR}/terraform/ssh-key.pem"
+  # if the key path is not provided, use the default and get the key from the terraform directory
+  if [ -z "$SSH_KEY_PATH" ] || [ "$SSH_KEY_PATH" == "${CURRENT_DIR}/terraform/ssh-key.pem" ]; then
+    chmod +x ${CURRENT_DIR}/terraform/get-key.sh
+    ${CURRENT_DIR}/terraform/get-key.sh
+  fi
   SSH_CREDENTIAL="ansible_ssh_private_key_file=${SSH_KEY_PATH}"
 elif [[ "$AUTH_METHOD" == "password" ]]; then
   prompt_for_input "Please enter the password for SSH authentication" SSH_PASSWORD '^.+$'

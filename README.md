@@ -88,10 +88,10 @@ Before you begin, ensure you have the following installed on your local machine:
 You will need to provide the following information:
 - Host ID (public key of the validator node wallet)
 - Private Key (private key of the validator node wallet)
-- Host Public P2P Address (public IP address of the validator node)
+- Host Public P2P Address (public IP address or DNS name of the validator node)
 - Host ssh username (default is tenuser)*
 - Host ssh password or path to ssh key file*
-- L1 WS URL (websocket URL of the L1 node)
+- L1 WS URL (geth client, Infura, etc.websocket URL of the L1 node)
 - Postgres DB Host (leave blank if unsure or want to provision a new one)
 
 \* Note: If you used terraform to provision the VM, you can just press enter and choose the default values.
