@@ -79,24 +79,22 @@ Before you begin, ensure you have the following installed on your local machine:
 
 ### Deploy the Validator Node
 
-1. **Navigate to the Ansible directory**:
+1. **Run the installation script**:
    ```sh
-   cd ansible
+   chmod +x install-ten.sh
+   ./install-ten.sh
    ```
 
-2. **Copy the example `hosts.ini` file and edit it**:
-   ```sh
-   cp hosts.ini.example hosts.ini
-   # Edit hosts.ini with the IP address of your VM
-   ```
+You will need to provide the following information:
+- Host ID (public key of the validator node wallet)
+- Private Key (private key of the validator node wallet)
+- Host Public P2P Address (public IP address of the validator node)
+- Host ssh username (default is tenuser)*
+- Host ssh password or path to ssh key file*
+- L1 WS URL (websocket URL of the L1 node)
+- Postgres DB Host (leave blank if unsure or want to provision a new one)
 
-
-
-3. **Run the Ansible playbook**:
-   ```sh
-   ansible-playbook -i hosts.ini setup-validator-playbook.yaml
-   ```
-   Ensure that the `hosts.ini` file is correctly configured with the details of your provisioned infrastructure.
+\* Note: If you used terraform to provision the VM, you can just press enter and choose the default values.
 
 ## Additional Information
 
