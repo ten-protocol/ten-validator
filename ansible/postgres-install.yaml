@@ -37,12 +37,17 @@
             POSTGRES_PASSWORD: pass
           ports:
             - "5432:5432"
+          volumes:
+            - postgres_data:/var/lib/postgresql/data
           networks:
             - node_network
 
       networks:
         node_network:
           external: true
+
+      volumes:
+        postgres_data:
 
 - name: Stop and remove old Postgres container
   ansible.builtin.shell: |
@@ -88,6 +93,20 @@
     provider: selfsigned
     selfsigned_notAfter: "99991231235959Z"  # Set to a far future date
 
+- name: Create custom postgresql.conf
+  ansible.builtin.copy:
+    dest: ./postgres/postgresql.conf
+    mode: '0644'
+    content: |
+      # Include the default PostgreSQL configuration
+      include = '/usr/share/postgresql/postgresql.conf.sample'
+
+      # SSL configuration
+      ssl = on
+      ssl_cert_file = '/var/lib/postgresql/server.crt'
+      ssl_key_file = '/var/lib/postgresql/server.key'
+      ssl_prefer_server_ciphers = on
+
 - name: Create Dockerfile for PostgreSQL
   ansible.builtin.copy:
     dest: ./postgres/Dockerfile
@@ -97,13 +116,12 @@
 
       COPY ./certs/server.crt /var/lib/postgresql/server.crt
       COPY ./certs/server.key /var/lib/postgresql/server.key
+      COPY ./postgresql.conf /etc/postgresql/postgresql.conf
 
       RUN chown postgres:postgres /var/lib/postgresql/server.crt /var/lib/postgresql/server.key \
           && chmod 600 /var/lib/postgresql/server.crt /var/lib/postgresql/server.key
 
-      RUN echo "ssl = on" >> /usr/share/postgresql/postgresql.conf \
-          && echo "ssl_cert_file = '/var/lib/postgresql/server.crt'" >> /usr/share/postgresql/postgresql.conf \
-          && echo "ssl_key_file = '/var/lib/postgresql/server.key'" >> /usr/share/postgresql/postgresql.conf
+      CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
 
 - name: Run Docker Compose with custom path
   ansible.builtin.command: docker-compose up --build -d
@@ -119,8 +137,12 @@
       - postgresql-client
     state: present
 
-- name: Test postgres with psql
+- name: Wait for Postgres to be ready
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Test postgres with psql and confirm SSL is enabled
   ansible.builtin.command: >
-    psql "postgres://postgres:pass@0.0.0.0:5432/postgres" -c 'SELECT 1'
-  register: psql_test
-  failed_when: psql_test.rc != 0
+    psql "postgres://postgres:pass@0.0.0.0:5432/postgres?sslmode=require" -c "SHOW ssl"
+  register: psql_ssl_test
+  failed_when: psql_ssl_test.rc != 0 or 'on' not in psql_ssl_test.stdout
