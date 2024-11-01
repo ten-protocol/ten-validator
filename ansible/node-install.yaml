@@ -90,8 +90,8 @@
 - name: Pull docker images (in case they are not present or outdated)
   ansible.builtin.command: docker pull {{ item }}
   loop:
-    - {{ host_docker_build_tag }}
-    - {{ enclave_docker_build_tag }}
+    - "{{ host_docker_build_tag }}"
+    - "{{ enclave_docker_build_tag }}"
 
 - name: Run go-ten node
   ansible.builtin.command: >
