@@ -19,7 +19,7 @@ variable "username" {
 # Must be a valid VM size and SGX enabled
 variable "vm_size" {
   type        = string
-  default     = "Standard_DC2_v2"
+  default     = "Standard_DC2ds_v3"
   description = "The size of the VM."
 }
 
