@@ -24,7 +24,7 @@
 
 - name: Copy Go binaries
   ansible.builtin.copy:
-    src: ./files/go1.22.6.linux-amd64.tar.gz
+    src: ./files/go1.22.11.linux-amd64.tar.gz
     dest: go-linux-amd64.tar.gz
 
 - name: Extract Go binaries

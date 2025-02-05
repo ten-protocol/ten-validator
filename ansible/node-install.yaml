@@ -98,6 +98,7 @@
     ./start-node
     -is_genesis=false
     -node_type=validator
+    -num_enclaves=1
     -is_sgx_enabled=true
     -host_id={{ host_id }}
     -l1_ws_url={{ l1_ws_url }}
@@ -116,5 +117,9 @@
     -max_batch_interval={{ l2_max_batch_interval }}
     -rollup_interval={{ l2_rollup_interval }}
     -l1_chain_id={{ l1_chain_id }}
+    -l1_beacon_url=${{ l1_beacon_url }} \
+    -l1_blob_archive_url=${{ l1_blob_archive_url }} \
     -postgres_db_host={{ postgres_db_host }}
     start
+
+               
