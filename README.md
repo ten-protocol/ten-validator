@@ -1,6 +1,8 @@
 # Azure Validator Node
 
-This repository contains scripts and configurations to set up and manage an Azure Validator Node using Terraform and Ansible.
+This repository contains scripts and configurations to set up and manage an Azure Validator Node using Terraform and Ansible.  
+Further information can be found at the [TEN docsite](https://docs.ten.xyz/docs/category/for-validators-1)  
+For assistance, contact the TEN ops team using the _node-operators_ channel on the [TEN Discord server](https://discord.gg/tenprotocol)
 
 ## Overview
 
