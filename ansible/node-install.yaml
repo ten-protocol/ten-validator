@@ -103,6 +103,10 @@
     -l1_ws_url={{ l1_ws_url }}
     -management_contract_addr={{ management_contract_addr }}
     -message_bus_contract_addr={{ message_bus_contract_addr }}
+    -enclave_registry_addr={{ enclave_registry_addr }}
+    -da_registry_addr={{ da_registry_addr }}
+    -cross_chain_addr={{ cross_chain_addr }}
+    -network_config_addr={{ network_config_addr }}
     -l1_start={{ l1_start_hash }}
     -private_key={{ private_key }}
     -sequencer_addr={{ sequencer_addr }}
