@@ -101,7 +101,6 @@
     -is_sgx_enabled=true
     -host_id={{ host_id }}
     -l1_ws_url={{ l1_ws_url }}
-    -management_contract_addr={{ management_contract_addr }}
     -message_bus_contract_addr={{ message_bus_contract_addr }}
     -enclave_registry_addr={{ enclave_registry_addr }}
     -da_registry_addr={{ da_registry_addr }}

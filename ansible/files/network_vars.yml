@@ -11,7 +11,6 @@ l2_max_batch_interval: "1s"
 l2_rollup_interval: "15m"
 l1_chain_id: 11155111
 message_bus_contract_addr: "0x52D373C5333d2a76cE99441A8146b6AeF93C8D7a"
-management_contract_addr: "0x7799941697EBe41002f48f42340b2A0CF7C4324A"
 l1_start_hash: "0x766c7d3611cf2c4219fa08ece539a7f60769438811b9a61f9ff21fe5d4d4a0ab"
 sequencer_addr: "obscuronode-0-sepolia-testnet.uksouth.cloudapp.azure.com:10000"
 enclave_registry_addr: "0x88950F0D58B832fafb6164c0D56fA18Bd3570cf3"
