@@ -11,7 +11,7 @@ username = "tenuser"
 
 # Must be a valid VM size and SGX enabled
 # The size of the VM
-vm_size = "Standard_DC8_v2"
+vm_size = "Standard_DC2ds_v3"
 
 # The port the web server will listen on
 host_http_port = 10000
