@@ -136,9 +136,9 @@ resource "azurerm_linux_virtual_machine" "ten_validatorApp_terraform_vm" {
 
   source_image_reference {
     publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts-gen2"
-    version   = "20.04.202206220"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
   }
 
   computer_name  = "tenvalidatorVM"
