@@ -1,0 +1,192 @@
+---
+- name: Install k3s on Rise-6 server
+  hosts: all
+  become: true
+
+  vars:
+    k3s_version: "v1.28.3"  # Production-stable version
+    k3s_install_dir: "/opt/k3s"
+    k3s_data_dir: "/var/lib/rancher/k3s"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+
+  tasks:
+    - name: Update system packages
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+      register: apt_update
+
+    - name: Install required system packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - git
+          - jq
+          - htop
+          - net-tools
+          - ntp
+          - chrony
+          - apparmor
+          - apparmor-utils
+          - seccomp
+          - audit
+        state: present
+
+    - name: Disable UFW (k3s manages iptables)
+      ansible.builtin.systemd:
+        name: ufw
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Set up sysctl parameters for k3s
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      loop:
+        - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+        - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+        - { key: 'net.ipv4.ip_forward', value: '1' }
+        - { key: 'net.ipv4.conf.all.forwarding', value: '1' }
+        - { key: 'fs.file-max', value: '2097152' }
+        - { key: 'fs.inotify.max_user_watches', value: '524288' }
+        - { key: 'vm.max_map_count', value: '262144' }
+
+    - name: Load required kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+        - nf_conntrack
+        - ip_vs
+        - ip_vs_rr
+
+    - name: Create k3s installation directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ k3s_install_dir }}"
+        - "{{ k3s_data_dir }}"
+        - /var/log/pods
+
+    - name: Check if k3s is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_installed
+
+    - name: Download k3s installer script
+      ansible.builtin.get_url:
+        url: "https://get.k3s.io"
+        dest: "/tmp/k3s-install.sh"
+        mode: '0755'
+      when: not k3s_installed.stat.exists
+
+    - name: Install k3s
+      ansible.builtin.shell: |
+        INSTALL_K3S_VERSION="{{ k3s_version }}" \
+        K3S_KUBECONFIG_MODE="644" \
+        K3S_NODE_NAME="{{ ansible_hostname }}" \
+        /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_SKIP_DOWNLOAD: "false"
+      when: not k3s_installed.stat.exists
+      register: k3s_install_result
+
+    - name: Wait for k3s to be ready
+      ansible.builtin.shell: |
+        until /usr/local/bin/k3s kubectl get nodes; do
+          echo "Waiting for k3s to be ready..."
+          sleep 5
+        done
+      retries: 12
+      delay: 10
+      register: k3s_ready
+
+    - name: Verify k3s installation
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s --version
+        /usr/local/bin/k3s kubectl get nodes
+        /usr/local/bin/k3s kubectl get pods --all-namespaces
+      register: k3s_verify
+
+    - name: Display k3s verification output
+      ansible.builtin.debug:
+        msg: "{{ k3s_verify.stdout_lines }}"
+
+    - name: Copy kubeconfig to standard location
+      ansible.builtin.copy:
+        src: "{{ kubeconfig_path }}"
+        dest: "/home/{{ ansible_user_id }}/.kube/config"
+        remote_src: yes
+        mode: '0600'
+      when: ansible_user_id != 'root'
+
+    - name: Create kubeconfig symlink
+      ansible.builtin.file:
+        src: "{{ kubeconfig_path }}"
+        dest: "/root/.kube/config"
+        state: link
+
+    - name: Verify kubectl access
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl cluster-info
+        /usr/local/bin/k3s kubectl get nodes -o wide
+      register: k3s_cluster_info
+
+    - name: Display cluster info
+      ansible.builtin.debug:
+        msg: "{{ k3s_cluster_info.stdout_lines }}"
+
+    - name: Label node for SGX workloads
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl label nodes {{ ansible_hostname }} \
+          sgx.intel.com/epc=true \
+          ten-validator=true \
+          --overwrite
+      register: node_label_result
+
+    - name: Verify node labeling
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl get nodes --show-labels
+      register: node_labels
+
+    - name: Display node labels
+      ansible.builtin.debug:
+        msg: "{{ node_labels.stdout_lines }}"
+
+    - name: Install Helm
+      ansible.builtin.shell: |
+        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      environment:
+        PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+    - name: Verify Helm installation
+      ansible.builtin.shell: |
+        helm version
+      register: helm_version
+
+    - name: Display Helm version
+      ansible.builtin.debug:
+        msg: "{{ helm_version.stdout }}"
+
+    - name: Print k3s kubectl access command
+      ansible.builtin.debug:
+        msg: |
+          k3s installation complete!
+
+          To access the cluster:
+          export KUBECONFIG={{ kubeconfig_path }}
+          kubectl get nodes
+          kubectl get pods --all-namespaces
+
+          Or use the k3s wrapper:
+          k3s kubectl get nodes

@@ -75,10 +75,23 @@ resource "null_resource" "ansible_provisioner" {
     }
   }
 
-  # Run Ansible playbook for Docker and Ten Validator setup
+  # Step 1: Run k3s installation playbook
   provisioner "local-exec" {
     command = <<-EOT
       sleep 30 && \
+      ansible-playbook \
+        -i '${data.ovh_dedicated_server.ten_validator.ip},' \
+        -u ${var.username} \
+        --private-key=${local_file.ssh_private_key.filename} \
+        --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' \
+        ../ansible/k3s-install.yaml
+    EOT
+  }
+
+  # Step 2: Run Helm deployment playbook
+  provisioner "local-exec" {
+    command = <<-EOT
+      sleep 60 && \
       ansible-playbook \
         -i '${data.ovh_dedicated_server.ten_validator.ip},' \
         -u ${var.username} \
@@ -87,7 +100,7 @@ resource "null_resource" "ansible_provisioner" {
         -e "host_websocket_port=${var.host_websocket_port}" \
         -e "host_p2p_port=${var.host_p2p_port}" \
         --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' \
-        ../ansible/setup-validator-playbook.yaml
+        ../ansible/helm-ten-node-deploy.yaml
     EOT
   }
 }

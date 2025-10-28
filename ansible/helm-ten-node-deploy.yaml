@@ -1,0 +1,207 @@
+---
+- name: Deploy Ten Validator Helm Chart on k3s
+  hosts: all
+  become: true
+
+  vars:
+    helm_release_name: "ten-validator"
+    helm_chart_path: "{{ playbook_dir }}/../../../ten-apps/charts/ten-node"
+    helm_namespace: "ten-validator"
+    helm_values_file: "{{ playbook_dir }}/values-ovh-rise6.yaml"
+
+    # From environment or defaults
+    enclave_image_tag: "{{ lookup('env', 'ENCLAVE_IMAGE_TAG', default='latest') }}"
+    host_image_tag: "{{ lookup('env', 'HOST_IMAGE_TAG', default='latest') }}"
+    edb_image_tag: "{{ lookup('env', 'EDB_IMAGE_TAG', default='v0.3.4') }}"
+
+    # Network configuration
+    host_id: "{{ lookup('env', 'HOST_ID', default='ten-validator-rise6') }}"
+    host_p2p_port: "{{ lookup('env', 'HOST_P2P_PORT', default='10000') }}"
+    host_http_port: "{{ lookup('env', 'HOST_HTTP_PORT', default='80') }}"
+    host_ws_port: "{{ lookup('env', 'HOST_WS_PORT', default='81') }}"
+
+    # L1 configuration
+    l1_ws_url: "{{ lookup('env', 'L1_WS_URL', default='https://ethereum-sepolia-beacon-api.publicnode.com') }}"
+    l1_beacon_url: "{{ lookup('env', 'L1_BEACON_URL', default='https://eth-beacon-chain-sepolia.drpc.org/rest/') }}"
+
+    # Secrets (from environment or Kubernetes secrets)
+    node_private_key: "{{ lookup('env', 'NODE_PRIVATE_KEY', default='') }}"
+    postgres_password: "{{ lookup('env', 'POSTGRES_PASSWORD', default='') }}"
+
+  pre_tasks:
+    - name: Check if kubeconfig exists
+      ansible.builtin.stat:
+        path: "/etc/rancher/k3s/k3s.yaml"
+      register: kubeconfig_stat
+
+    - name: Fail if kubeconfig not found
+      ansible.builtin.fail:
+        msg: "k3s kubeconfig not found at /etc/rancher/k3s/k3s.yaml. Run k3s-install.yaml first."
+      when: not kubeconfig_stat.stat.exists
+
+    - name: Verify k3s is running
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl get nodes
+      register: k3s_nodes
+
+    - name: Display k3s nodes
+      ansible.builtin.debug:
+        msg: "{{ k3s_nodes.stdout_lines }}"
+
+  tasks:
+    - name: Create ten-validator namespace
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl create namespace {{ helm_namespace }} --dry-run=client -o yaml | \
+        /usr/local/bin/k3s kubectl apply -f -
+      register: namespace_create
+
+    - name: Label namespace for SGX
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl label namespace {{ helm_namespace }} \
+          sgx-enabled=true \
+          --overwrite
+      register: namespace_label
+
+    - name: Check if Helm chart directory exists
+      ansible.builtin.stat:
+        path: "{{ helm_chart_path }}/Chart.yaml"
+      register: helm_chart_stat
+
+    - name: Fail if Helm chart not found
+      ansible.builtin.fail:
+        msg: "Helm chart not found at {{ helm_chart_path }}/Chart.yaml"
+      when: not helm_chart_stat.stat.exists
+
+    - name: Check if custom values file exists
+      ansible.builtin.stat:
+        path: "{{ helm_values_file }}"
+      register: values_file_stat
+
+    - name: Display Helm chart information
+      ansible.builtin.shell: |
+        cat {{ helm_chart_path }}/Chart.yaml
+      register: helm_chart_info
+
+    - name: Show chart info
+      ansible.builtin.debug:
+        msg: "{{ helm_chart_info.stdout_lines }}"
+
+    - name: Verify Helm is installed
+      ansible.builtin.shell: |
+        helm version --client
+      register: helm_version
+
+    - name: Show Helm version
+      ansible.builtin.debug:
+        msg: "{{ helm_version.stdout }}"
+
+    - name: Deploy Helm chart (with custom values if available)
+      ansible.builtin.shell: |
+        {% if values_file_stat.stat.exists %}
+        /usr/local/bin/k3s helm install {{ helm_release_name }} \
+          {{ helm_chart_path }} \
+          --namespace {{ helm_namespace }} \
+          --values {{ helm_values_file }} \
+          --values /tmp/ten-validator-secrets.yaml \
+          --wait \
+          --timeout 5m
+        {% else %}
+        /usr/local/bin/k3s helm install {{ helm_release_name }} \
+          {{ helm_chart_path }} \
+          --namespace {{ helm_namespace }} \
+          --values /tmp/ten-validator-secrets.yaml \
+          --wait \
+          --timeout 5m
+        {% endif %}
+      environment:
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+      register: helm_install
+
+    - name: Display Helm install output
+      ansible.builtin.debug:
+        msg: "{{ helm_install.stdout_lines }}"
+
+    - name: Wait for Enclave pod to be ready
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl wait --for=condition=ready pod \
+          -l app=ten-validator-enclave \
+          -n {{ helm_namespace }} \
+          --timeout=300s
+      register: enclave_ready
+      ignore_errors: yes
+
+    - name: Wait for Host pod to be ready
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl wait --for=condition=ready pod \
+          -l app=ten-validator-host \
+          -n {{ helm_namespace }} \
+          --timeout=300s
+      register: host_ready
+      ignore_errors: yes
+
+    - name: Get deployment status
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl get all -n {{ helm_namespace }} -o wide
+      register: deployment_status
+
+    - name: Show deployment status
+      ansible.builtin.debug:
+        msg: "{{ deployment_status.stdout_lines }}"
+
+    - name: Get pod logs (Enclave)
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl logs -n {{ helm_namespace }} \
+          -l app=ten-validator-enclave \
+          --tail=50
+      register: enclave_logs
+      ignore_errors: yes
+
+    - name: Show Enclave logs
+      ansible.builtin.debug:
+        msg: "{{ enclave_logs.stdout_lines }}"
+
+    - name: Get pod logs (Host)
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s kubectl logs -n {{ helm_namespace }} \
+          -l app=ten-validator-host \
+          --tail=50
+      register: host_logs
+      ignore_errors: yes
+
+    - name: Show Host logs
+      ansible.builtin.debug:
+        msg: "{{ host_logs.stdout_lines }}"
+
+    - name: Get Helm release status
+      ansible.builtin.shell: |
+        /usr/local/bin/k3s helm list -n {{ helm_namespace }}
+      register: helm_status
+
+    - name: Show Helm status
+      ansible.builtin.debug:
+        msg: "{{ helm_status.stdout_lines }}"
+
+    - name: Print deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ✅ Ten Validator Deployment Complete!
+
+          Namespace: {{ helm_namespace }}
+          Helm Release: {{ helm_release_name }}
+          Chart Path: {{ helm_chart_path }}
+
+          Access cluster:
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl get pods -n {{ helm_namespace }}
+
+          Or use k3s wrapper:
+          k3s kubectl get pods -n {{ helm_namespace }}
+
+          View Enclave pod:
+          k3s kubectl logs -f -n {{ helm_namespace }} -l app=ten-validator-enclave
+
+          View Host pod:
+          k3s kubectl logs -f -n {{ helm_namespace }} -l app=ten-validator-host
+
+          Delete release:
+          k3s helm uninstall {{ helm_release_name }} -n {{ helm_namespace }}

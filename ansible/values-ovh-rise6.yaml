@@ -1,0 +1,280 @@
+# Helm Values Override for Ten Validator on OVH Rise-6
+# Optimized for 24 vCores, 128GB RAM, SGX-enabled
+
+global:
+  imagePullSecrets: []
+  imagePullPolicy: Always
+  destructiveDeployment: false  # Set to true only for testing
+
+# Enclave configuration (6 cores max, 12Gi RAM)
+enclave:
+  replicaCount: 1
+
+  image:
+    repository: testnetobscuronet.azurecr.io/obscuronet/sepolia_enclave
+    tag: "latest"
+    pullPolicy: Always
+
+  # Node selection for SGX
+  nodeSelector:
+    ten-validator: "true"
+    sgx.intel.com/epc: "true"
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: sgx.intel.com/epc
+                operator: Exists
+
+  tolerations:
+    - key: sgx.intel.com/epc
+      operator: Exists
+      effect: NoSchedule
+
+  # Storage for enclave
+  storage:
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+
+  # Kubernetes resource limits for Enclave Pod
+  resources:
+    limits:
+      memory: 12Gi
+      cpu: 6000m  # 6 cores (37.5% of 16 available after OS)
+    requests:
+      memory: 10Gi
+      cpu: 3000m  # 3 cores min
+
+  # EdgelessDB configuration (inside Enclave pod)
+  edb:
+    image:
+      repository: "testnetobscuronet.azurecr.io/obscuronet/ten-edb-4096"
+      tag: "v0.3.4"
+      pullPolicy: "Always"
+
+    sqlApiHost: "0.0.0.0"
+    sqlApiPort: 3306
+    restApiHost: "0.0.0.0"
+    restApiPort: 8080
+
+    debug: false
+    simulation: false
+    heapSize: 8  # Increased from 4 for Rise-6 (more RAM available)
+    marbleType: EdgelessDB
+    launchMarble: false
+
+    # EdgelessDB resource limits
+    resources:
+      limits:
+        memory: 8Gi
+        cpu: 4000m  # 4 cores
+        sgx.intel.com/epc: 6Gi
+        sgx.intel.com/provision: 10
+        sgx.intel.com/enclave: 10
+      requests:
+        memory: 6Gi
+        cpu: 2000m  # 2 cores
+        sgx.intel.com/epc: 6Gi
+        sgx.intel.com/provision: 10
+        sgx.intel.com/enclave: 10
+
+    # Storage for EdgelessDB data
+    storage:
+      spec:
+        storageClassName: "local-path"  # k3s default
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi  # Reduced from 100Gi for cost
+
+    tolerations:
+      - key: sgx.intel.com/epc
+        operator: Exists
+        effect: NoSchedule
+
+  # Enclave container resource limits
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 2000m  # 2 cores
+    requests:
+      memory: 4Gi
+      cpu: 1000m  # 1 core
+
+  # Service for Enclave RPC
+  service:
+    type: ClusterIP
+    port: 11001
+
+  ports:
+    - name: rpc
+      port: 11001
+      containerPort: 11001
+
+# Host configuration (0.5 cores, 1Gi RAM)
+host:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: "testnetobscuronet.azurecr.io/obscuronet/sepolia_host"
+    tag: "latest"
+    pullPolicy: "Always"
+
+  # Resource limits for Host Pod
+  resources:
+    limits:
+      memory: 1Gi
+      cpu: 500m  # 0.5 cores
+    requests:
+      memory: 1Gi
+      cpu: 200m  # 0.2 cores
+
+  # Service for Host (external access)
+  service:
+    type: ClusterIP  # Change to LoadBalancer if external access needed
+    # port: 80
+
+  ports:
+    - name: http
+      port: 80
+      containerPort: 80
+    - name: ws
+      port: 81
+      containerPort: 81
+    - name: p2p
+      port: 10000
+      containerPort: 10000
+
+# PostgreSQL (if needed, optional)
+postgresql:
+  enabled: false  # Use external PostgreSQL or in-memory for now
+
+  persistence:
+    enabled: false  # Disable for Rise-6 single-node
+
+  auth:
+    postgresPassword: "changeme"
+    database: "ten_node"
+
+# Network configuration
+config:
+  network:
+    chainid: 443
+    genesisjson: '{}'
+    batch:
+      interval: 1s
+      maxinterval: 1s
+      maxsize: 56320
+    gas:
+      basefee: "1000000000"
+      mingasprice: "1000000000"
+      paymentaddress: "0x0000000000000000000000000000000000000000"
+      batchexecutionlimit: "30000000"
+      localexecutioncap: "300000000000"
+    l1:
+      chainid: 11155111
+      blocktime: 15s
+      starthash: "0x0000000000000000000000000000000000000000"
+      l1contracts:
+        management: "0x0000000000000000000000000000000000000000"
+        messagebus: "0x0000000000000000000000000000000000000000"
+        bridge: "0x0000000000000000000000000000000000000000"
+        crosschain: "0x0000000000000000000000000000000000000000"
+        rollup: "0x0000000000000000000000000000000000000000"
+        enclaveRegistry: "0x0000000000000000000000000000000000000000"
+        networkConfig: "0x0000000000000000000000000000000000000000"
+    rollup:
+      interval: 15m0s
+      maxinterval: 10m0s
+      maxsize: 131072
+    sequencer:
+      p2paddress: "obscuronode-0-sepolia-testnet.uksouth.cloudapp.azure.com:10000"
+      systemcontractsupgrader: "0x0000000000000000000000000000000000000000"
+    crosschain:
+      interval: 6s
+
+  node:
+    nodetype: "validator"
+    name: ""
+    id: ""  # Public key of the node
+    isgenesis: false
+    hostAddress: "obscuronode-ovh-rise6:10000"
+
+  host:
+    db:
+      useinmemory: false
+      sqlitepath: ""
+      historicaltxcount: 0
+      historicalcontractcount: 0
+    debug:
+      enablemetrics: true
+      metricshttpport: 0
+      enableprofiler: false
+      enabledebugnamespace: true
+    enclave:
+      rpcaddresses:
+        - "obscuronode-enclave:11001"
+      rpctimeout: 10s
+    l1:
+      websocketurl: "https://ethereum-sepolia-beacon-api.publicnode.com"
+      l1beaconurl: "https://eth-beacon-chain-sepolia.drpc.org/rest/"
+      l1blobarchiveurl: "https://ethereum-sepolia-blob-archive.example.com/rest/"
+      rpctimeout: 15s
+    log:
+      level: 3
+      path: sys_out
+    p2p:
+      isdisabled: false
+      bindaddress: "0.0.0.0:10000"
+      timeout: 10s
+    rpc:
+      address: "0.0.0.0"
+      enablehttp: true
+      httpport: 80
+      enablews: true
+      wsport: 81
+
+  enclave:
+    simulation: false
+    enableattestation: true
+    db:
+      useinmemory: false
+      edgelessdbhost: "obscuronode-edgelessdb"
+      sqlitepath: ""
+    debug:
+      enabledebugnamespace: true
+      enableprofiler: false
+    l1:
+      enableblockvalidation: false
+      genesisjson: []
+    log:
+      level: 3
+      path: sys_out
+    rpc:
+      bindaddress: "0.0.0.0:11001"
+      timeout: 5s
+
+# External Secrets (if using external secret management)
+externalSecrets:
+  enabled: false
+
+# Cleanup jobs
+cleanupJob:
+  postgres:
+    image:
+      repository: postgres
+      tag: "15-alpine"
+      pullPolicy: Always
+  pvc:
+    image:
+      repository: bitnamilegacy/kubectl
+      tag: "1.33.4"
+      pullPolicy: Always

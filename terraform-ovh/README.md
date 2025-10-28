@@ -20,12 +20,54 @@ Terraform configuration for deploying the Ten Validator on OVH's Intel Xeon bare
 
 **WINNER:** Rise-6 is **45% cheaper** than Scale-i1 with **50% more cores** and massive headroom!
 
-## How It Works
+## Deployment Architecture
 
-This is a **hybrid approach**:
-1. **Manual Step**: Order bare metal server via OVH Control Panel (~5 minutes)
-2. **Automated**: Terraform handles deployment and configuration
-3. **Ansible**: Automatically deploys Docker and Ten Validator
+This is a **fully automated production setup**:
+
+```
+┌─────────────────────────────────────────────────┐
+│           OVH Rise-6 Server (24 cores)           │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  ┌──────────────────────────────────────────┐   │
+│  │  k3s Control Plane + Worker              │   │
+│  │  (Production Kubernetes, 1.28.3)        │   │
+│  │                                           │   │
+│  │  ┌──────────────────────────────────┐   │   │
+│  │  │  ten-validator Namespace         │   │   │
+│  │  │                                   │   │   │
+│  │  │  ┌─────────────────────────────┐ │   │   │
+│  │  │  │ Enclave Pod (6 cores, SGX) │ │   │   │
+│  │  │  │ ├─ EdgelessDB (4 cores)     │ │   │   │
+│  │  │  │ └─ TEN Enclave (2 cores)    │ │   │   │
+│  │  │  └─────────────────────────────┘ │   │   │
+│  │  │                                   │   │   │
+│  │  │  ┌─────────────────────────────┐ │   │   │
+│  │  │  │ Host Pod (0.5 cores)        │ │   │   │
+│  │  │  └─────────────────────────────┘ │   │   │
+│  │  │                                   │   │   │
+│  │  │  Headroom: 14 cores (59%)        │   │   │
+│  │  └──────────────────────────────────┘   │   │
+│  └──────────────────────────────────────────┘   │
+│                                                  │
+└─────────────────────────────────────────────────┘
+
+1. Terraform creates/manages OVH server
+2. Ansible installs k3s (production Kubernetes)
+3. Helm deploys ten-validator chart
+4. Fully automated from infrastructure to application
+```
+
+## Deployment Flow
+
+**Step-by-step automation:**
+1. **Order Server** (you, 5 min): Go to OVH Control Panel, order Rise-6
+2. **Terraform** (automatic, 5 min): Create infrastructure, SSH keys, DNS
+3. **k3s Installation** (automatic, 5 min): Install production Kubernetes
+4. **Helm Deployment** (automatic, 5 min): Deploy ten-validator chart
+5. **Validation** (automatic, 5 min): Wait for pods to be ready
+
+**Total time: ~20-25 minutes end-to-end**
 
 For detailed ordering guide, see [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md)
 
@@ -166,7 +208,7 @@ Allocation:
 - Scale-i1: 16 cores @ $420+/month = **$26.25/core**
 - **Rise-6 saves $187+/month while providing 50% more cores!**
 
-## Quick Start (5 Minutes After Server is Running)
+## Quick Start (Fully Automated: ~15-20 minutes)
 
 ```bash
 cd terraform-ovh
@@ -176,15 +218,23 @@ cp terraform.tfvars.example terraform.tfvars
 nano terraform.tfvars
 # Enter your OVH API credentials and server name
 
-# 2. Deploy
+# 2. Deploy (fully automated: OVH server + k3s + Helm)
 terraform init
 terraform plan
 terraform apply
 
-# 3. Wait for Ansible to complete (~10-15 minutes)
+# 3. Terraform will automatically:
+#    ├─ Order server on OVH (manual - you do this in control panel first)
+#    ├─ Install k3s (production Kubernetes)
+#    ├─ Deploy Helm chart (ten-validator)
+#    └─ Start Enclave + Host pods
+
 # 4. Verify validator is running
 ssh -i ssh-key-ovh.pem tenuser@<SERVER_IP>
-docker logs ten-validator
+
+# On the server, check k3s:
+k3s kubectl get pods -n ten-validator
+k3s kubectl logs -f -n ten-validator -l app=ten-validator-enclave
 ```
 
 ## Step-by-Step Setup Instructions
@@ -410,8 +460,119 @@ Rise-6 Advantage: SAVE $2,244/year vs Scale-i1! 💰
 3. Largest RAM pool (start at 128GB, scale to 1TB)
 4. Full Intel SGX support included
 
+## Post-Deployment: Managing k3s and Helm
+
+After deployment, you have a production Kubernetes cluster running on Rise-6.
+
+### Access the Cluster
+
+```bash
+# SSH into your server
+ssh -i ssh-key-ovh.pem tenuser@<SERVER_IP>
+
+# View k3s information
+k3s --version
+k3s kubectl cluster-info
+
+# View k3s nodes
+k3s kubectl get nodes -o wide
+k3s kubectl top nodes
+
+# View all pods (all namespaces)
+k3s kubectl get pods --all-namespaces
+```
+
+### Manage Ten Validator
+
+```bash
+# Check validator status
+k3s kubectl get pods -n ten-validator
+k3s kubectl describe pod -n ten-validator -l app=ten-validator-enclave
+
+# View Enclave logs
+k3s kubectl logs -f -n ten-validator -l app=ten-validator-enclave
+
+# View Host logs
+k3s kubectl logs -f -n ten-validator -l app=ten-validator-host
+
+# View Helm release
+k3s helm list -n ten-validator
+
+# Get Helm chart values
+k3s helm get values ten-validator -n ten-validator
+
+# Upgrade Helm release
+k3s helm upgrade ten-validator /path/to/chart \
+  -n ten-validator \
+  -f values-ovh-rise6.yaml
+```
+
+### Monitor Resources
+
+```bash
+# Watch resource usage
+k3s kubectl top pods -n ten-validator
+k3s kubectl top nodes
+
+# View node details
+k3s kubectl describe node
+
+# Check SGX labels
+k3s kubectl get nodes --show-labels | grep sgx
+```
+
+### Troubleshooting
+
+```bash
+# Check k3s service status
+systemctl status k3s
+
+# View k3s logs
+journalctl -u k3s -f
+
+# Restart k3s (graceful)
+systemctl restart k3s
+
+# Check disk space (important for Enclave storage)
+df -h /var/lib/rancher/k3s
+
+# Check Kubernetes events
+k3s kubectl get events -n ten-validator --sort-by='.lastTimestamp'
+```
+
+### Backup and Recovery
+
+```bash
+# Backup k3s database
+sudo k3s etcd-snapshot save --name validator-backup-$(date +%Y%m%d)
+
+# List backups
+sudo k3s etcd-snapshot list
+
+# Restore from backup (use with caution!)
+sudo systemctl stop k3s
+sudo k3s server --cluster-reset-restore-path=/path/to/backup
+```
+
+### Uninstall Validator
+
+```bash
+# Delete Helm release
+k3s helm uninstall ten-validator -n ten-validator
+
+# Delete namespace
+k3s kubectl delete namespace ten-validator
+
+# Keep k3s running or uninstall k3s entirely
+# To uninstall k3s:
+sudo /usr/local/bin/k3s-uninstall.sh
+```
+
 ## Support and Documentation
 
+- **k3s Documentation**: https://docs.k3s.io/
+- **Helm Documentation**: https://helm.sh/docs/
+- **Kubernetes Documentation**: https://kubernetes.io/docs/
 - **OVH API Docs**: https://api.ovh.com/console/
 - **Terraform OVH Provider**: https://registry.terraform.io/providers/ovhhcloud/ovh/latest/docs
 - **OVH Bare Metal Support**: https://help.ovhcloud.com/
