@@ -5,27 +5,40 @@ OVH doesn't allow ordering servers via Terraform API, but we can **fully automat
 
 ## Step 1: Find Cheapest SGX-Enabled OVH Server
 
-⚠️ **IMPORTANT**: Advance-6 is NOT showing on the confidential computing filter. Use these instead:
+✅ **BEST OPTION**: Rise-6 is the clear winner for SGX + cost + performance!
 
-### Option A: Scale-i1 (Intel Xeon, SGX) - RECOMMENDED FOR SGX + 8+ CORES
+### Option A: Rise-6 (Intel Xeon, SGX) - ✅ BEST VALUE & RECOMMENDED
+- **SGX Support**: ✓ Yes (Intel 3rd Gen Xeon Gold 6312U - Ice Lake)
+- **CPU**: 24 vCores / 48 threads
+- **RAM**: 128GB (upgradeable to 256GB, 512GB, or 1TB)
+- **Storage**: 2x960GB NVMe SSD (upgradeable to 2x960GB + 2x6TB)
+- **Cost**: **$233/month** ← BEST PRICE
+- **Cost per Core**: $9.70/core (vs $26.25 for Scale-i1)
+- **Where**: https://www.ovhcloud.com/en/bare-metal/prices/?display=list&use_cases=confidential-computing
+- **Available**: Asia Pacific, North America, Europe
+
+**Why Rise-6?**
+- 24 cores for $233 vs 16 cores for $420+ (Scale-i1)
+- SAVE $187+/month ($2,244/year!)
+- 59% CPU headroom (more stable)
+- 128GB RAM standard (vs 32GB)
+- Newest generation SKU on affordable tier
+
+### Option B: Scale-i1 (Intel Xeon, SGX) - ALTERNATIVE (more expensive)
 - **SGX Support**: ✓ Yes (Intel 4th Gen Xeon Scalable)
 - **CPU**: 16 vCores
 - **RAM**: 32GB
 - **Storage**: 2x960GB NVMe
-- **Cost**: ~$420+/month
-- **Where**: https://www.ovhcloud.com/en/bare-metal/scale/scale-i1/
+- **Cost**: ~$420+/month (82% more expensive than Rise-6!)
+- **Advantage**: Newer processor generation, but not worth the extra $187/month
 
-### Option B: Scale-i2 (Intel Xeon, SGX) - MORE POWER IF NEEDED
+### Option C: Scale-i2 (Intel Xeon, SGX) - NOT RECOMMENDED
 - **SGX Support**: ✓ Yes (Intel 4th Gen Xeon Scalable)
 - **CPU**: 24 vCores
 - **RAM**: 48GB
 - **Storage**: 2x1.92TB NVMe
 - **Cost**: ~$460+/month
-- **Where**: https://www.ovhcloud.com/en/bare-metal/scale/scale-i2/
-
-### Option C: CHEAPER ALTERNATIVE WITHOUT SGX (if not required)
-- **OVH Public Cloud d2-8**: 4 vCores, 8GB RAM, ~$31/month
-- **Problem**: NO SGX support (only good if TEN validator doesn't need SGX)
+- **Problem**: MORE expensive than Rise-6 with same core count! ❌
 
 ## Step 2: Verify SGX is Available (Check These)
 

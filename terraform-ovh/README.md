@@ -4,18 +4,21 @@ Terraform configuration for deploying the Ten Validator on OVH's Intel Xeon bare
 
 ## Why OVH Bare Metal with SGX?
 
-| Feature | OVH Scale-i1 | Azure DC2ds_v3 |
-|---------|---|---|
-| **Intel SGX** | ✓ Yes | ✓ Yes |
-| **CPUs** | 16 vCores | 2 vCores |
-| **RAM** | 32 GB | 8 GB |
-| **Storage** | 2x960GB NVMe | 75GB |
-| **Cost/Month** | ~$420+ | ~$200-300 |
-| **Cost/Core** | $26.25 | $100-150 |
-| **Automation** | ✓ Terraform | ✓ Terraform |
-| **SGX Type** | Intel 4th Gen Xeon | Intel Confidential Compute |
+| Feature | **OVH Rise-6** ✅ RECOMMENDED | OVH Scale-i1 | Azure DC2ds_v3 |
+|---------|---|---|---|
+| **Intel SGX** | ✓ Yes | ✓ Yes | ✓ Yes |
+| **CPUs** | **24 cores** | 16 cores | 2 cores |
+| **Threads** | **48 threads** | - | - |
+| **RAM** | 128GB-1TB | 32 GB | 8 GB |
+| **Storage** | 2x960GB-12TB | 2x960GB | 75GB |
+| **Cost/Month** | **$233** | ~$420+ | ~$200-300 |
+| **Cost/Core** | **$9.70** | $26.25 | $100-150 |
+| **Headroom** | 59% | 37.5% | - |
+| **Automation** | ✓ Terraform | ✓ Terraform | ✓ Terraform |
+| **SGX Type** | Intel 3rd Gen Xeon (Ice Lake) | Intel 4th Gen Xeon | Intel CC |
+| **Available** | ✅ On pricing page | ✅ On pricing page | - |
 
-**Note:** Scale-i1 is the cheapest OVH option WITH Intel SGX. Scale-i2 (24 cores, $460+/month) also available if needed.
+**WINNER:** Rise-6 is **45% cheaper** than Scale-i1 with **50% more cores** and massive headroom!
 
 ## How It Works
 
@@ -29,13 +32,14 @@ For detailed ordering guide, see [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md
 ## Prerequisites
 
 1. **OVH Account** with an ordered Bare Metal Server WITH Intel SGX
-   - **Recommended**: Scale-i1 (16 vCores, 32GB RAM, Intel SGX)
-   - **Also available**: Scale-i2 (24 vCores, 48GB RAM, Intel SGX)
+   - **RECOMMENDED**: Rise-6 (24 cores, 128GB-1TB RAM, **$233/month**, Intel SGX) ✅ BEST VALUE
+   - **ALTERNATIVE**: Scale-i1 (16 cores, 32GB RAM, ~$420+/month, Intel SGX)
+   - **NOT RECOMMENDED**: Scale-i2 (24 cores, 48GB RAM, ~$460+/month - more expensive than Rise-6!)
    - Must have **Intel Xeon processor with SGX** (not AMD EPYC)
    - Must be running **Ubuntu 22.04 LTS**
    - Must have **SSH enabled**
    - Filter at: https://www.ovhcloud.com/en/bare-metal/prices/?display=list&use_cases=confidential-computing
-   - Available regions: EU (Paris, Strasbourg, Gravelines, Roubaix), US (Beauharnois)
+   - Available regions: Asia Pacific, North America, Europe
    - See [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md) for step-by-step ordering instructions
 
 2. **OVH API Credentials**
@@ -123,36 +127,44 @@ resources:
 - Only 2 cores left for: Host + OS + Kernel + Monitoring
 - **Result**: Constant CPU throttling, slow performance, unstable under load
 
-### Why Scale-i1 (16 cores) is Optimal
+### Why Rise-6 (24 cores) is Optimal ✅ RECOMMENDED
 
-✅ **OVH Scale-i1 (16 cores) Resource Allocation:**
+✅ **OVH Rise-6 (24 cores) Resource Allocation:**
 
 ```
-Available: 16 physical cores
+Available: 24 physical cores
 
 Allocation:
-├─ Enclave Pod limits:     6 cores  (37.5%)
-├─ Host Pod limits:        0.5 cores (3%)
-├─ Kernel/OS overhead:     2 cores  (12.5%)
-├─ Monitoring/Logging:     1.5 cores (9%)
-└─ Headroom/Buffer:        6 cores  (37.5%) ✅ PLENTY OF ROOM
+├─ Enclave Pod limits:     6 cores  (25%)
+├─ Host Pod limits:        0.5 cores (2%)
+├─ Kernel/OS overhead:     2 cores  (8%)
+├─ Monitoring/Logging:     1.5 cores (6%)
+└─ Headroom/Buffer:        14 cores (59%) ✅✅✅ MASSIVE ROOM!
 ```
 
-**Scale-i1 Final Specs:**
+**Rise-6 Final Specs:**
 
-| Resource | Kubernetes Requires | Scale-i1 Provides | Utilization | Status |
+| Resource | Kubernetes Requires | Rise-6 Provides | Utilization | Status |
 |----------|-------------------|-------------------|-------------|--------|
-| **vCPU** | 11-15 cores (safe) | 16 cores | 68-94% safe | ✅ Perfect |
-| **RAM** | 11Gi (requests) | 32 GB | 34% | ✅ Excellent |
+| **vCPU** | 11-15 cores (safe) | 24 cores | 45-62% safe | ✅✅ Excellent |
+| **RAM** | 11Gi (requests) | 128GB-1TB | <1% | ✅✅ Outstanding |
 | **EPC** | 6Gi | 128+ GB | <5% | ✅ More than enough |
-| **SGX** | Required | Intel 4th Gen Xeon | Full support | ✅ Full support |
+| **SGX** | Required | Intel 3rd Gen Xeon (Ice Lake) | Full support | ✅ Full support |
+| **Cost** | Budget-conscious | $233/month | BEST VALUE | ✅ 45% cheaper |
 
 **Key Advantages:**
-- 37.5% headroom prevents CPU throttling
-- Kernel/system has dedicated CPU capacity
-- Monitoring doesn't impact validator
-- Room to scale/add workloads
-- Stable under sustained load
+- **59% headroom** - massive buffer for stability and scaling
+- 24 cores = 12x overallocation prevents ANY throttling
+- Kernel/system has abundant capacity
+- Monitoring has zero impact on validator
+- Easy room to add multiple validators or other workloads
+- **$233/month** is 45% cheaper than Scale-i1
+- RAM flexibility (128GB-1TB) for future scaling
+
+**vs Scale-i1:**
+- Rise-6: 24 cores @ $233/month = **$9.70/core**
+- Scale-i1: 16 cores @ $420+/month = **$26.25/core**
+- **Rise-6 saves $187+/month while providing 50% more cores!**
 
 ## Quick Start (5 Minutes After Server is Running)
 
@@ -184,12 +196,15 @@ docker logs ten-validator
 Quick summary:
 1. Log in to [OVH Control Panel](https://www.ovh.com/manager/dedicated)
 2. Go to: https://www.ovhcloud.com/en/bare-metal/prices/?display=list&use_cases=confidential-computing
-3. Order **Scale-i1** (16 vCores, 32GB RAM, Intel SGX) - ~$420+/month
-   - **Alternative**: Scale-i2 (24 vCores, 48GB RAM) if you need more power
+3. Order **Rise-6** (24 cores, 128GB-1TB RAM, Intel SGX) - **$233/month** ✅ BEST VALUE
+   - Intel Xeon Gold 6312U (3rd Gen, Ice Lake)
+   - 24 cores / 48 threads
+   - Recommended starting RAM: 128GB (can order up to 1TB)
+   - **Why Rise-6?** 24 cores for $233/month beats Scale-i1 (16 cores for $420+/month)
 4. Choose **Ubuntu 22.04 LTS** as OS
 5. Enable **SSH Access**
 6. Wait for OS installation (~15-20 minutes)
-7. Note your server name (e.g., `ns12345.ip-1-2-3.eu`)
+7. Note your server name (e.g., `rise6-xxx.ip-1-2-3.eu`)
 
 ### Step 2: Generate OVH API Credentials
 
@@ -354,27 +369,46 @@ This will:
 
 ## Cost Estimation
 
-### OVH Scale-i1 Pricing (Intel SGX with 16 vCores)
-- **Monthly**: ~$420+ / month
-- **Hourly**: ~$0.58+ / hour
-- **Hourly Savings Plan**: ~$0.46-0.50/hour (20% discount with annual commitment)
-- **With Annual Commitment**: ~$336+/month (20% savings)
+### OVH Rise-6 Pricing (Intel SGX with 24 vCores) ✅ RECOMMENDED
 
-### OVH Scale-i2 Pricing (Intel SGX with 24 vCores)
-- **Monthly**: ~$460+ / month
-- **More power if needed**
+**Base Configuration (128GB RAM):**
+- **Monthly**: $233/month ← BEST VALUE
+- **Per Core**: $9.70/core
+- **Storage**: 2x960GB SSD NVMe (standard)
+- **Bandwidth**: 1-3 Gbps public, 1-2 Gbps private
 
-### Total Cost Comparison (Monthly)
+**Optional Upgrades:**
+- Upgrade to 256GB RAM: Small additional cost
+- Upgrade to 512GB RAM: Modest additional cost
+- Upgrade to 1TB RAM: Larger but still reasonable cost
 
-| Component | OVH Scale-i1 | Azure DC2ds_v3 |
-|-----------|--------------|----------------|
-| Compute | $420 | $200-300 |
-| vCores | 16 | 2 |
-| RAM | 32GB | 8GB |
-| Storage | 2x960GB NVMe | 75GB |
-| **Total** | **$420** | **$220-360** |
+### Comparison to Other Options
 
-**Note:** OVH Scale-i1 provides 8x more vCores and 4x more RAM than Azure DC2ds_v3. Scale-i1 is the cheapest OVH option WITH Intel SGX on the official pricing page.
+| Feature | **OVH Rise-6** ✅ | OVH Scale-i1 | Azure DC2ds_v3 |
+|---------|---|---|---|
+| **vCores** | 24 | 16 | 2 |
+| **Base RAM** | 128GB | 32GB | 8GB |
+| **Storage** | 2x960GB | 2x960GB | 75GB |
+| **Monthly Cost** | **$233** | $420+ | $200-300 |
+| **Cost/Core** | **$9.70** | $26.25 | $100-150 |
+| **Annual Savings vs Scale-i1** | **+$2,244/year** | - | - |
+| **Annual Savings vs Azure** | **+$12+/year** | - | - |
+
+### Real-World Annual Cost
+
+```
+Rise-6:      $233 x 12 = $2,796/year
+Scale-i1:    $420 x 12 = $5,040/year
+Azure:       $250 x 12 = $3,000/year
+
+Rise-6 Advantage: SAVE $2,244/year vs Scale-i1! 💰
+```
+
+**Why Rise-6 wins on cost:**
+1. Lowest price ($233/month)
+2. Most cores per dollar ($9.70/core)
+3. Largest RAM pool (start at 128GB, scale to 1TB)
+4. Full Intel SGX support included
 
 ## Support and Documentation
 
