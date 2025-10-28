@@ -5,32 +5,40 @@ OVH doesn't allow ordering servers via Terraform API, but we can **fully automat
 
 ## Step 1: Find Cheapest SGX-Enabled OVH Server
 
-### Option A: Advance-6 (Intel Xeon, SGX) - RECOMMENDED
-- **SGX Support**: ✓ Yes (Intel 3rd Gen Xeon Ice Lake)
-- **Estimated Cost**: ~$49-66/month (promotional)
-- **Specs**: Unknown (need to check), but likely 8-12 vCores, 16-32GB RAM
-- **Where**: https://www.ovhcloud.com/en/bare-metal/advance/
+⚠️ **IMPORTANT**: Advance-6 is NOT showing on the confidential computing filter. Use these instead:
 
-### Option B: Scale-i1 (Intel Xeon, SGX)
-- **SGX Support**: ✓ Yes (Intel 4th Gen Xeon)
-- **Cost**: ~$420/month
-- **Specs**: 16 vCores, 32GB RAM, 2x960GB NVMe
-- **Where**: https://www.ovhcloud.com/en/bare-metal/scale/
+### Option A: Scale-i1 (Intel Xeon, SGX) - RECOMMENDED FOR SGX + 8+ CORES
+- **SGX Support**: ✓ Yes (Intel 4th Gen Xeon Scalable)
+- **CPU**: 16 vCores
+- **RAM**: 32GB
+- **Storage**: 2x960GB NVMe
+- **Cost**: ~$420+/month
+- **Where**: https://www.ovhcloud.com/en/bare-metal/scale/scale-i1/
 
-### Option C: Scale-i2 (Intel Xeon, SGX)
-- **SGX Support**: ✓ Yes (Intel 4th Gen Xeon)
+### Option B: Scale-i2 (Intel Xeon, SGX) - MORE POWER IF NEEDED
+- **SGX Support**: ✓ Yes (Intel 4th Gen Xeon Scalable)
+- **CPU**: 24 vCores
+- **RAM**: 48GB
+- **Storage**: 2x1.92TB NVMe
 - **Cost**: ~$460+/month
-- **Specs**: 24 vCores, 48GB RAM, 2x1.92TB NVMe
+- **Where**: https://www.ovhcloud.com/en/bare-metal/scale/scale-i2/
+
+### Option C: CHEAPER ALTERNATIVE WITHOUT SGX (if not required)
+- **OVH Public Cloud d2-8**: 4 vCores, 8GB RAM, ~$31/month
+- **Problem**: NO SGX support (only good if TEN validator doesn't need SGX)
 
 ## Step 2: Verify SGX is Available (Check These)
 
-1. **Go to**: https://www.ovhcloud.com/en/bare-metal/prices/
-2. **Filter for**: "Advance-6" or "Scale-i1"
-3. **Look for**: "Intel Xeon" processor (NOT AMD EPYC)
-4. **Confirm**: Blog mentions "Intel SGX" support
+1. **Go to**: https://www.ovhcloud.com/en/bare-metal/prices/?display=list&use_cases=confidential-computing
+2. **Filter for**: Servers with "Intel SGX" in description
+3. **Available models**: Scale-i1, Scale-i2 (only these have Intel SGX on that page)
+4. **Look for**: "Intel Xeon" processor (NOT AMD EPYC which uses Infinity Guard)
 5. **Add to cart** and note the service name (e.g., `ns12345.ip-1-2-3.eu`)
 
-**⚠️ IMPORTANT**: Don't order AMD EPYC models - they have SEV, not SGX!
+**⚠️ IMPORTANT**:
+- Only Scale-i1 and Scale-i2 have Intel SGX available on official pricing page
+- Don't order AMD EPYC models (Advance Gen3) - they have AMD Infinity Guard, not Intel SGX
+- Advance-6 mentioned in blogs may be deprecated or region-specific
 
 ## Step 3: Order via OVH Control Panel
 

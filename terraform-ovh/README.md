@@ -4,16 +4,18 @@ Terraform configuration for deploying the Ten Validator on OVH's Intel Xeon bare
 
 ## Why OVH Bare Metal with SGX?
 
-| Feature | OVH Advance-6 | OVH Scale-i1 | Azure DC2ds_v3 |
-|---------|---|---|---|
-| **Intel SGX** | ✓ Yes | ✓ Yes | ✓ Yes |
-| **CPUs** | ~8-12 | 16 | 2 |
-| **RAM** | ~16-32GB | 32 GB | 8 GB |
-| **Cost/Month** | ~$49-66 | ~$420 | ~$200-300 |
-| **Cost/Core** | ~$6-8 | $26.25 | $100-150 |
-| **Automation** | ✓ Terraform | ✓ Terraform | ✓ Terraform |
+| Feature | OVH Scale-i1 | Azure DC2ds_v3 |
+|---------|---|---|
+| **Intel SGX** | ✓ Yes | ✓ Yes |
+| **CPUs** | 16 vCores | 2 vCores |
+| **RAM** | 32 GB | 8 GB |
+| **Storage** | 2x960GB NVMe | 75GB |
+| **Cost/Month** | ~$420+ | ~$200-300 |
+| **Cost/Core** | $26.25 | $100-150 |
+| **Automation** | ✓ Terraform | ✓ Terraform |
+| **SGX Type** | Intel 4th Gen Xeon | Intel Confidential Compute |
 
-**Recommended:** Advance-6 offers best price-to-performance with full Intel SGX support and Terraform automation.
+**Note:** Scale-i1 is the cheapest OVH option WITH Intel SGX. Scale-i2 (24 cores, $460+/month) also available if needed.
 
 ## How It Works
 
@@ -26,10 +28,13 @@ For detailed ordering guide, see [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md
 
 ## Prerequisites
 
-1. **OVH Account** with an ordered Bare Metal Server (Advance-6, Scale-i1, or Scale-i2)
-   - Must have **Intel processor with SGX** (not AMD EPYC)
+1. **OVH Account** with an ordered Bare Metal Server WITH Intel SGX
+   - **Recommended**: Scale-i1 (16 vCores, 32GB RAM, Intel SGX)
+   - **Also available**: Scale-i2 (24 vCores, 48GB RAM, Intel SGX)
+   - Must have **Intel Xeon processor with SGX** (not AMD EPYC)
    - Must be running **Ubuntu 22.04 LTS**
    - Must have **SSH enabled**
+   - Filter at: https://www.ovhcloud.com/en/bare-metal/prices/?display=list&use_cases=confidential-computing
    - Available regions: EU (Paris, Strasbourg, Gravelines, Roubaix), US (Beauharnois)
    - See [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md) for step-by-step ordering instructions
 
@@ -81,11 +86,13 @@ docker logs ten-validator
 
 Quick summary:
 1. Log in to [OVH Control Panel](https://www.ovh.com/manager/dedicated)
-2. Order cheapest **Intel SGX server** (Advance-6 recommended at ~$49-66/month)
-3. Choose **Ubuntu 22.04 LTS** as OS
-4. Enable **SSH Access**
-5. Wait for OS installation (~15-20 minutes)
-6. Note your server name (e.g., `ns12345.ip-1-2-3.eu`)
+2. Go to: https://www.ovhcloud.com/en/bare-metal/prices/?display=list&use_cases=confidential-computing
+3. Order **Scale-i1** (16 vCores, 32GB RAM, Intel SGX) - ~$420+/month
+   - **Alternative**: Scale-i2 (24 vCores, 48GB RAM) if you need more power
+4. Choose **Ubuntu 22.04 LTS** as OS
+5. Enable **SSH Access**
+6. Wait for OS installation (~15-20 minutes)
+7. Note your server name (e.g., `ns12345.ip-1-2-3.eu`)
 
 ### Step 2: Generate OVH API Credentials
 
@@ -250,21 +257,27 @@ This will:
 
 ## Cost Estimation
 
-### OVH Scale-i1 Pricing (EU region)
-- **Monthly**: ~$420 / month
-- **Hourly**: ~$0.58 / hour
-- **Hourly Savings Plan**: ~$0.48 / hour (20% discount)
+### OVH Scale-i1 Pricing (Intel SGX with 16 vCores)
+- **Monthly**: ~$420+ / month
+- **Hourly**: ~$0.58+ / hour
+- **Hourly Savings Plan**: ~$0.46-0.50/hour (20% discount with annual commitment)
+- **With Annual Commitment**: ~$336+/month (20% savings)
+
+### OVH Scale-i2 Pricing (Intel SGX with 24 vCores)
+- **Monthly**: ~$460+ / month
+- **More power if needed**
 
 ### Total Cost Comparison (Monthly)
 
 | Component | OVH Scale-i1 | Azure DC2ds_v3 |
 |-----------|--------------|----------------|
 | Compute | $420 | $200-300 |
-| Storage | Included | $20-50 |
-| Network | $0 | $0-10 |
+| vCores | 16 | 2 |
+| RAM | 32GB | 8GB |
+| Storage | 2x960GB NVMe | 75GB |
 | **Total** | **$420** | **$220-360** |
 
-**Note:** OVH provides significantly more compute resources. Cost per core is much lower.
+**Note:** OVH Scale-i1 provides 8x more vCores and 4x more RAM than Azure DC2ds_v3. Scale-i1 is the cheapest OVH option WITH Intel SGX on the official pricing page.
 
 ## Support and Documentation
 
