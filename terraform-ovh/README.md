@@ -57,6 +57,45 @@ For detailed ordering guide, see [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md
 
 5. **SSH Access** to OVH server (enabled in Control Panel)
 
+## Resource Requirements Verification
+
+Your deployment requires resources for **THREE concurrent workloads**:
+
+```
+1. Enclave (TEN Validator):  4 vCores + 8GB RAM + 6GB EPC
+2. Host OS:                   2-4 vCores + variable RAM
+3. Edgeless DB:               2-4 vCores + variable RAM
+4. Overhead/Buffer:           2+ vCores
+─────────────────────────────────────────
+TOTAL MINIMUM:               12-16 vCores + 16GB+ RAM
+```
+
+**Example insufficient configuration:**
+- ❌ Intel Xeon-E 2388G (8 cores): NOT ENOUGH for all three workloads
+- ❌ Scale-i0 (8 cores): INSUFFICIENT
+
+**OVH Scale-i1 Resource Allocation:**
+
+| Workload | Cores | RAM | EPC | SGX |
+|----------|-------|-----|-----|-----|
+| Enclave | 4 | 8 GB | 6 GB | ✅ |
+| Edgeless DB | 4 | 6+ GB | - | - |
+| Host OS | 4 | 4+ GB | - | ✅ |
+| **Buffer/Headroom** | **4** | **14 GB** | **122 GB** | - |
+| **TOTAL** | **16** | **32 GB** | **128+ GB** | **✅** |
+
+**OVH Scale-i1 Specifications:**
+
+| Resource | Needed | Provided | Headroom |
+|----------|--------|----------|----------|
+| **vCPU** | 12-16 cores | 16 cores | ✅ Exactly right |
+| **RAM** | 18-20 GB | 32 GB | ✅ 60% extra |
+| **EPC** | 6 GB | 128+ GB | ✅ 21x surplus |
+| **SGX** | Required | Intel 4th Gen Xeon | ✅ Full support |
+| **Processor** | 4th Gen needed | Xeon Scalable 4th Gen | ✅ Perfect match |
+
+**Scale-i1 is the MINIMUM OVH option** that can support all three workloads simultaneously with reasonable headroom.
+
 ## Quick Start (5 Minutes After Server is Running)
 
 ```bash
