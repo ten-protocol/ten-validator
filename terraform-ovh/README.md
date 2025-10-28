@@ -57,44 +57,102 @@ For detailed ordering guide, see [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md
 
 5. **SSH Access** to OVH server (enabled in Control Panel)
 
-## Resource Requirements Verification
+## Resource Requirements (Based on Actual Kubernetes YAML)
 
-Your deployment requires resources for **THREE concurrent workloads**:
+From `/ten-apps/charts/ten-node/values.yaml` - actual production configuration:
+
+### 1. Enclave Pod (StatefulSet with 2 containers)
+
+**EdgelessDB Container:**
+```yaml
+resources:
+  limits:
+    cpu: 4000m (4 cores)
+    memory: 8Gi
+    sgx.intel.com/epc: 6Gi
+    sgx.intel.com/enclave: 10
+    sgx.intel.com/provision: 10
+  requests:
+    cpu: 2000m (2 cores)
+    memory: 6Gi
+    sgx.intel.com/epc: 6Gi
+```
+
+**TEN Enclave Container:**
+```yaml
+resources:
+  limits:
+    cpu: 2000m (2 cores)
+    memory: 4Gi
+  requests:
+    cpu: 1000m (1 core)
+    memory: 4Gi
+```
+
+**Enclave Pod Totals:**
+- **Limits**: 6 cores, 12Gi RAM, 6Gi EPC
+- **Requests**: 3 cores, 10Gi RAM, 6Gi EPC
+
+### 2. Host Pod (Deployment)
+
+```yaml
+resources:
+  limits:
+    cpu: 500m (0.5 cores)
+    memory: 1Gi
+  requests:
+    cpu: 200m (0.2 cores)
+    memory: 1Gi
+```
+
+### 3. System Total Requirements
+
+| Component | Requests | Limits | Notes |
+|-----------|----------|--------|-------|
+| **Enclave Pod** | 3 cores | 6 cores | EdgelessDB + TEN Enclave |
+| **Host Pod** | 0.2 cores | 0.5 cores | Host OS node |
+| **OS/Kernel** | ~1-2 cores | ~2-3 cores | System overhead |
+| **Monitoring/Logging** | ~0.5-1 core | ~1-2 cores | Optional but recommended |
+| **Headroom (20%)** | ~1-2 cores | ~2-4 cores | For stability, no throttling |
+| **TOTAL SAFE MINIMUM** | **6-7 cores** | **11-15 cores** | - |
+
+### Why 8 Cores is Insufficient
+
+❌ **Intel Xeon-E 2388G (8 cores) Problems:**
+- Enclave limits alone = 6 cores (75% of total!)
+- Only 2 cores left for: Host + OS + Kernel + Monitoring
+- **Result**: Constant CPU throttling, slow performance, unstable under load
+
+### Why Scale-i1 (16 cores) is Optimal
+
+✅ **OVH Scale-i1 (16 cores) Resource Allocation:**
 
 ```
-1. Enclave (TEN Validator):  4 vCores + 8GB RAM + 6GB EPC
-2. Host OS:                   2-4 vCores + variable RAM
-3. Edgeless DB:               2-4 vCores + variable RAM
-4. Overhead/Buffer:           2+ vCores
-─────────────────────────────────────────
-TOTAL MINIMUM:               12-16 vCores + 16GB+ RAM
+Available: 16 physical cores
+
+Allocation:
+├─ Enclave Pod limits:     6 cores  (37.5%)
+├─ Host Pod limits:        0.5 cores (3%)
+├─ Kernel/OS overhead:     2 cores  (12.5%)
+├─ Monitoring/Logging:     1.5 cores (9%)
+└─ Headroom/Buffer:        6 cores  (37.5%) ✅ PLENTY OF ROOM
 ```
 
-**Example insufficient configuration:**
-- ❌ Intel Xeon-E 2388G (8 cores): NOT ENOUGH for all three workloads
-- ❌ Scale-i0 (8 cores): INSUFFICIENT
+**Scale-i1 Final Specs:**
 
-**OVH Scale-i1 Resource Allocation:**
+| Resource | Kubernetes Requires | Scale-i1 Provides | Utilization | Status |
+|----------|-------------------|-------------------|-------------|--------|
+| **vCPU** | 11-15 cores (safe) | 16 cores | 68-94% safe | ✅ Perfect |
+| **RAM** | 11Gi (requests) | 32 GB | 34% | ✅ Excellent |
+| **EPC** | 6Gi | 128+ GB | <5% | ✅ More than enough |
+| **SGX** | Required | Intel 4th Gen Xeon | Full support | ✅ Full support |
 
-| Workload | Cores | RAM | EPC | SGX |
-|----------|-------|-----|-----|-----|
-| Enclave | 4 | 8 GB | 6 GB | ✅ |
-| Edgeless DB | 4 | 6+ GB | - | - |
-| Host OS | 4 | 4+ GB | - | ✅ |
-| **Buffer/Headroom** | **4** | **14 GB** | **122 GB** | - |
-| **TOTAL** | **16** | **32 GB** | **128+ GB** | **✅** |
-
-**OVH Scale-i1 Specifications:**
-
-| Resource | Needed | Provided | Headroom |
-|----------|--------|----------|----------|
-| **vCPU** | 12-16 cores | 16 cores | ✅ Exactly right |
-| **RAM** | 18-20 GB | 32 GB | ✅ 60% extra |
-| **EPC** | 6 GB | 128+ GB | ✅ 21x surplus |
-| **SGX** | Required | Intel 4th Gen Xeon | ✅ Full support |
-| **Processor** | 4th Gen needed | Xeon Scalable 4th Gen | ✅ Perfect match |
-
-**Scale-i1 is the MINIMUM OVH option** that can support all three workloads simultaneously with reasonable headroom.
+**Key Advantages:**
+- 37.5% headroom prevents CPU throttling
+- Kernel/system has dedicated CPU capacity
+- Monitoring doesn't impact validator
+- Room to scale/add workloads
+- Stable under sustained load
 
 ## Quick Start (5 Minutes After Server is Running)
 
