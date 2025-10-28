@@ -1,0 +1,18 @@
+# OVH API Credentials (get from https://api.ovh.com/createToken/)
+ovh_endpoint           = "ovh-eu"
+ovh_application_key    = "YOUR_APPLICATION_KEY"
+ovh_application_secret = "YOUR_APPLICATION_SECRET"
+ovh_consumer_key       = "YOUR_CONSUMER_KEY"
+
+# OVH Bare Metal Service Name (from OVH Control Panel)
+# Example: ns12345.ip-1-2-3.eu
+ovh_service_name = "YOUR_BARE_METAL_SERVICE_NAME"
+
+# Server configuration
+username    = "tenuser"
+domain_name = "ovh.net"
+
+# Ten Validator Ports
+host_http_port      = 10000
+host_websocket_port = 80
+host_p2p_port       = 81

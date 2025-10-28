@@ -1,0 +1,33 @@
+# Terraform files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# tfvars files - contains sensitive data
+terraform.tfvars
+!terraform.tfvars.example
+
+# SSH Keys
+ssh-key-ovh*
+!ssh-key-ovh.pub.example
+ssh-login.sh
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Ansible
+*.pyc
+__pycache__/
