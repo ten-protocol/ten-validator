@@ -1,20 +1,20 @@
 output "server_name" {
-  value       = ovh_dedicated_server.ten_validator.service_name
+  value       = data.ovh_dedicated_server.ten_validator.service_name
   description = "OVH Bare Metal Server name"
 }
 
 output "server_ip" {
-  value       = ovh_dedicated_server.ten_validator.ip
+  value       = data.ovh_dedicated_server.ten_validator.ip
   description = "Server public IPv4 address"
 }
 
 output "server_ipv6" {
-  value       = ovh_dedicated_server.ten_validator.ipv6
+  value       = data.ovh_dedicated_server.ten_validator.ipv6
   description = "Server public IPv6 address block"
 }
 
 output "ssh_command" {
-  value       = "ssh -i ${local_file.ssh_private_key.filename} ${var.username}@${ovh_dedicated_server.ten_validator.ip}"
+  value       = "ssh -i ${local_file.ssh_private_key.filename} ${var.username}@${data.ovh_dedicated_server.ten_validator.ip}"
   description = "SSH command to connect to the server"
 }
 
@@ -43,7 +43,7 @@ output "validator_endpoints" {
 }
 
 output "ansible_inventory_line" {
-  value       = "${ovh_dedicated_server.ten_validator.ip} ansible_user=${var.username} ansible_ssh_private_key_file=${local_file.ssh_private_key.filename}"
+  value       = "${data.ovh_dedicated_server.ten_validator.ip} ansible_user=${var.username} ansible_ssh_private_key_file=${local_file.ssh_private_key.filename}"
   description = "Ansible inventory line for manual playbook execution"
 }
 
@@ -52,12 +52,12 @@ output "next_steps" {
     # OVH Bare Metal Server deployment completed!
 
     Server Details:
-    - Service Name: ${ovh_dedicated_server.ten_validator.service_name}
-    - IP Address: ${ovh_dedicated_server.ten_validator.ip}
+    - Service Name: ${data.ovh_dedicated_server.ten_validator.service_name}
+    - IP Address: ${data.ovh_dedicated_server.ten_validator.ip}
     - SSH Key: ${local_file.ssh_private_key.filename}
 
     Connect to server:
-    ssh -i ${local_file.ssh_private_key.filename} ${var.username}@${ovh_dedicated_server.ten_validator.ip}
+    ssh -i ${local_file.ssh_private_key.filename} ${var.username}@${data.ovh_dedicated_server.ten_validator.ip}
 
     Or run the login script:
     bash ${path.module}/ssh-login.sh

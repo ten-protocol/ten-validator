@@ -1,45 +1,33 @@
-# OVH Bare Metal Server with SGX - Scale-i1
-# Minimum cost SGX-enabled instance equivalent to Azure DC2ds_v3
-# Specs: 16 vCores, 32GB RAM, Intel Xeon Scalable with SGX
-# Cost: ~$420/month vs Azure DC2ds_v3 ~$200-300/month but OVH provides true SGX
+# OVH Bare Metal Server with SGX
+# This Terraform manages an EXISTING OVH bare metal server
+# The server must be ordered manually via OVH Control Panel:
+# https://www.ovhcloud.com/manager/
+#
+# Recommended servers (all have Intel SGX):
+# 1. Advance-6 (Intel Xeon Ice Lake) - ~$49-66/month - CHEAPEST with SGX
+# 2. Scale-i1 (Intel Xeon) - ~$420/month - 16 vCores, 32GB RAM
+#
+# Terraform automates:
+# - SSH key generation and management
+# - Reverse DNS configuration
+# - Server connectivity verification
+# - Ansible playbook execution for Docker & Ten Validator deployment
 
-# Get SSH public key
-data "ovh_dedicated_server_booted_disk" "server_os" {
-  service_name = ovh_dedicated_server.ten_validator.service_name
-  depends_on   = [ovh_dedicated_server.ten_validator]
-}
-
-# Generate SSH key pair
-resource "random_id" "ssh_key" {
-  byte_length = 8
-}
-
+# Generate SSH key pair locally
 resource "tls_private_key" "ten_validator_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# Create OVH Bare Metal Server (Scale-i1 with SGX)
-resource "ovh_dedicated_server" "ten_validator" {
+# Data source: Get existing OVH server details
+data "ovh_dedicated_server" "ten_validator" {
   service_name = var.ovh_service_name
-
-  # Boot configuration - install Ubuntu 22.04 LTS
-  boot_mode = "uefi"
-
-  # Installation will be done via OVH Control Panel or API
-  # For automated setup, use ovh_installation_template
-
-  lifecycle {
-    ignore_changes = [
-      boot_id,
-    ]
-  }
 }
 
 # Create reverse DNS entry for the server
 resource "ovh_reverse_dns" "ten_validator_rdns" {
-  service_name = ovh_dedicated_server.ten_validator.service_name
-  ip           = ovh_dedicated_server.ten_validator.ip
+  service_name = data.ovh_dedicated_server.ten_validator.service_name
+  ip           = data.ovh_dedicated_server.ten_validator.ip
   reverse      = "tenvalidator.${var.domain_name}"
 }
 
@@ -60,10 +48,14 @@ resource "local_file" "ssh_public_key" {
 
 # Null resource to trigger Ansible provisioning once server is ready
 resource "null_resource" "ansible_provisioner" {
-  depends_on = [ovh_dedicated_server.ten_validator]
+  depends_on = [
+    data.ovh_dedicated_server.ten_validator,
+    local_file.ssh_private_key
+  ]
 
   triggers = {
-    server_id = ovh_dedicated_server.ten_validator.service_name
+    server_id = data.ovh_dedicated_server.ten_validator.service_name
+    server_ip = data.ovh_dedicated_server.ten_validator.ip
   }
 
   # Wait for server to be reachable (max 300 seconds)
@@ -78,7 +70,7 @@ resource "null_resource" "ansible_provisioner" {
       type        = "ssh"
       user        = var.username
       private_key = tls_private_key.ten_validator_key.private_key_pem
-      host        = ovh_dedicated_server.ten_validator.ip
+      host        = data.ovh_dedicated_server.ten_validator.ip
       timeout     = "5m"
     }
   }
@@ -88,7 +80,7 @@ resource "null_resource" "ansible_provisioner" {
     command = <<-EOT
       sleep 30 && \
       ansible-playbook \
-        -i '${ovh_dedicated_server.ten_validator.ip},' \
+        -i '${data.ovh_dedicated_server.ten_validator.ip},' \
         -u ${var.username} \
         --private-key=${local_file.ssh_private_key.filename} \
         -e "host_http_port=${var.host_http_port}" \
@@ -105,7 +97,7 @@ resource "local_file" "ssh_login_script" {
   content              = <<-EOT
     #!/bin/bash
     # SSH login to Ten Validator OVH server
-    ssh -i ${local_file.ssh_private_key.filename} ${var.username}@${ovh_dedicated_server.ten_validator.ip}
+    ssh -i ${local_file.ssh_private_key.filename} ${var.username}@${data.ovh_dedicated_server.ten_validator.ip}
   EOT
   filename             = "${path.module}/ssh-login.sh"
   file_permission      = "0755"

@@ -1,24 +1,37 @@
 # Ten Validator on OVH Bare Metal with Intel SGX
 
-Terraform configuration for deploying the Ten Validator on OVH's Scale-i1 Bare Metal Server with Intel SGX support. This provides hardware-level security for the validator enclave at a competitive cost.
+Terraform configuration for deploying the Ten Validator on OVH's Intel Xeon bare metal servers with Intel SGX support. This provides hardware-level security for the validator enclave at a competitive cost.
 
 ## Why OVH Bare Metal with SGX?
 
-| Feature | OVH Scale-i1 | Azure DC2ds_v3 |
-|---------|--------------|----------------|
-| **Intel SGX** | ✓ Yes | ✓ Yes |
-| **CPUs** | 16 vCores | 2 vCores |
-| **RAM** | 32 GB | 8 GB |
-| **Cost/Month** | ~$420 | ~$200-300 |
-| **Cost/Core** | $26.25 | $100-150 |
-| **Storage** | 2x960GB NVMe | 75GB |
+| Feature | OVH Advance-6 | OVH Scale-i1 | Azure DC2ds_v3 |
+|---------|---|---|---|
+| **Intel SGX** | ✓ Yes | ✓ Yes | ✓ Yes |
+| **CPUs** | ~8-12 | 16 | 2 |
+| **RAM** | ~16-32GB | 32 GB | 8 GB |
+| **Cost/Month** | ~$49-66 | ~$420 | ~$200-300 |
+| **Cost/Core** | ~$6-8 | $26.25 | $100-150 |
+| **Automation** | ✓ Terraform | ✓ Terraform | ✓ Terraform |
 
-**OVH Advantage:** More resources at better price-per-core ratio, true bare metal isolation, and enterprise-grade SGX support.
+**Recommended:** Advance-6 offers best price-to-performance with full Intel SGX support and Terraform automation.
+
+## How It Works
+
+This is a **hybrid approach**:
+1. **Manual Step**: Order bare metal server via OVH Control Panel (~5 minutes)
+2. **Automated**: Terraform handles deployment and configuration
+3. **Ansible**: Automatically deploys Docker and Ten Validator
+
+For detailed ordering guide, see [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md)
 
 ## Prerequisites
 
-1. **OVH Account** with an active Bare Metal Server (Scale-i1 or similar)
+1. **OVH Account** with an ordered Bare Metal Server (Advance-6, Scale-i1, or Scale-i2)
+   - Must have **Intel processor with SGX** (not AMD EPYC)
+   - Must be running **Ubuntu 22.04 LTS**
+   - Must have **SSH enabled**
    - Available regions: EU (Paris, Strasbourg, Gravelines, Roubaix), US (Beauharnois)
+   - See [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md) for step-by-step ordering instructions
 
 2. **OVH API Credentials**
    - Visit: https://api.ovh.com/createToken/
@@ -39,16 +52,40 @@ Terraform configuration for deploying the Ten Validator on OVH's Scale-i1 Bare M
 
 5. **SSH Access** to OVH server (enabled in Control Panel)
 
-## Setup Instructions
+## Quick Start (5 Minutes After Server is Running)
 
-### Step 1: Prepare OVH Server
+```bash
+cd terraform-ovh
 
+# 1. Copy and edit configuration
+cp terraform.tfvars.example terraform.tfvars
+nano terraform.tfvars
+# Enter your OVH API credentials and server name
+
+# 2. Deploy
+terraform init
+terraform plan
+terraform apply
+
+# 3. Wait for Ansible to complete (~10-15 minutes)
+# 4. Verify validator is running
+ssh -i ssh-key-ovh.pem tenuser@<SERVER_IP>
+docker logs ten-validator
+```
+
+## Step-by-Step Setup Instructions
+
+### Step 1: Order and Prepare OVH Server
+
+**See [OVH_ORDERING_GUIDE.md](./OVH_ORDERING_GUIDE.md) for detailed ordering instructions**
+
+Quick summary:
 1. Log in to [OVH Control Panel](https://www.ovh.com/manager/dedicated)
-2. Navigate to **Bare Metal > Dedicated Servers**
-3. Select your Scale-i1 server
-4. Under **OS Installation**, install **Ubuntu 22.04 LTS**
-5. Enable **SSH Access** and note your server name (e.g., `ns12345.ip-1-2-3.eu`)
-6. Wait for installation to complete (~15-20 minutes)
+2. Order cheapest **Intel SGX server** (Advance-6 recommended at ~$49-66/month)
+3. Choose **Ubuntu 22.04 LTS** as OS
+4. Enable **SSH Access**
+5. Wait for OS installation (~15-20 minutes)
+6. Note your server name (e.g., `ns12345.ip-1-2-3.eu`)
 
 ### Step 2: Generate OVH API Credentials
 
